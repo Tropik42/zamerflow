@@ -6,6 +6,11 @@ import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
 import { formatOrderCard } from "./formatOrderCard.js";
 import {
+  getMeasurePaymentOptionByKey,
+  isMeasurePaymentValue,
+  measurePaymentOptions
+} from "./measurePaymentOptions.js";
+import {
   getMeasureServiceItemByKey,
   isMeasureServiceItemType,
   measureServiceItems
@@ -33,12 +38,6 @@ const helpText = "ℹ️ Помощь";
 const skipText = "Пропустить";
 const finishItemsText = "Готово";
 const salonsPerPage = 10;
-const paymentByByCode: Record<string, PaymentBy> = {
-  client: "клиентом",
-  salon: "салоном",
-  deposit: "депозит",
-  ipToSelfEmployed: "с ИП на самозанятого"
-};
 
 const sessions = new Map<string, WizardSession>();
 const pendingAuthTelegramUserIds = new Set<string>();
@@ -179,18 +178,31 @@ export function registerOrderWizard(
     await askPaymentOrExtraCharges(ctx, session);
   });
 
-  bot.action(/^payment:(client|salon|deposit|ipToSelfEmployed)$/, async (ctx) => {
+  bot.action("manual_service_item", async (ctx) => {
     await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
-    const paymentBy = paymentByByCode[ctx.match[1] ?? ""];
-
-    if (!session || session.step !== "paymentBy" || !paymentBy) {
+    if (!session || session.step !== "selectServiceItem") {
       await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
       return;
     }
 
-    session.draft.paymentBy = paymentBy;
+    session.step = "manualServiceItem";
+    await replyQuestion(ctx, "Введите позицию под замер вручную.");
+  });
+
+  bot.action(/^payment:(client|salon|deposit|ipToSelfEmployed)$/, async (ctx) => {
+    await safeAnswerCbQuery(ctx);
+
+    const session = getSession(ctx);
+    const paymentOption = getMeasurePaymentOptionByKey(ctx.match[1] ?? "");
+
+    if (!session || session.step !== "paymentBy" || !paymentOption) {
+      await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
+      return;
+    }
+
+    session.draft.paymentBy = paymentOption.value;
     session.step = "extraCharges";
     await replyQuestion(ctx, "9. Доплаты / особенности. Можно пропустить.", true);
   });
@@ -526,6 +538,9 @@ async function handleText(
     case "selectServiceItem":
       await handleServiceItemSelection(ctx, session, text);
       return;
+    case "manualServiceItem":
+      await addServiceItem(ctx, session, text);
+      return;
     case "paymentBy":
       await handlePaymentBy(ctx, session, text);
       return;
@@ -588,13 +603,13 @@ async function handleServiceItemSelection(
  * Добавляет позицию замера в черновик.
  * @param {Context} ctx Контекст Telegram-обновления.
  * @param {WizardSession} session Текущая wizard-сессия.
- * @param {ServiceItemType} serviceItemType Тип позиции замера.
+ * @param {string} serviceItemType Тип позиции замера.
  * @returns {Promise<void>}
  */
 async function addServiceItem(
   ctx: Context,
   session: WizardSession,
-  serviceItemType: ServiceItemType
+  serviceItemType: string
 ): Promise<void> {
   session.draft.serviceItems.push({
     type: serviceItemType,
@@ -680,12 +695,7 @@ function isServiceItemType(text: string): text is ServiceItemType {
  * @returns {boolean} true, если текст является PaymentBy.
  */
 function isPaymentBy(text: string): text is PaymentBy {
-  return (
-    text === "клиентом" ||
-    text === "салоном" ||
-    text === "депозит" ||
-    text === "с ИП на самозанятого"
-  );
+  return isMeasurePaymentValue(text);
 }
 
 /**
@@ -796,7 +806,7 @@ function serviceItemsKeyboard(canFinish: boolean) {
       serviceItemButton("wall_panels"),
       serviceItemButton("by_plan")
     ],
-    [serviceItemButton("other")]
+    [Markup.button.callback("вписать вручную", "manual_service_item")]
   ];
 
   if (canFinish) {
@@ -823,12 +833,9 @@ function serviceItemButton(key: string) {
  */
 function paymentKeyboard() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback("клиентом", "payment:client")],
-    [Markup.button.callback("салоном", "payment:salon")],
-    [Markup.button.callback("депозит", "payment:deposit")],
-    [
-      Markup.button.callback("с ИП на самозанятого", "payment:ipToSelfEmployed")
-    ],
+    ...measurePaymentOptions.map((option) => [
+      Markup.button.callback(option.buttonLabel, `payment:${option.key}`)
+    ]),
     [Markup.button.callback(cancelText, "cancel_order")]
   ]);
 }

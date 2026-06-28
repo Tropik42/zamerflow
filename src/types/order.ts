@@ -8,8 +8,7 @@ export type ServiceItemType =
   | "ТВ-зона"
   | "рабочая зона"
   | "стеновые панели"
-  | "по плану"
-  | "другое";
+  | "по плану";
 
 export interface ServiceItem {
   type: string;
@@ -172,6 +171,7 @@ export type WizardStep =
   | "metro"
   | "measureDate"
   | "selectServiceItem"
+  | "manualServiceItem"
   | "paymentBy"
   | "extraCharges"
   | "comment"

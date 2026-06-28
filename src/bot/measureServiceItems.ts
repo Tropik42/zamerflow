@@ -67,12 +67,6 @@ export const measureServiceItems: MeasureServiceItem[] = [
     itemType: "по плану",
     buttonLabel: "по плану",
     cardLabel: "по плану"
-  },
-  {
-    key: "other",
-    itemType: "другое",
-    buttonLabel: "другое",
-    cardLabel: "другого"
   }
 ];
 

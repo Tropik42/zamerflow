@@ -1,4 +1,5 @@
 import type { OrderDraft } from "../types/order.js";
+import { formatMeasurePaymentForCard } from "./measurePaymentOptions.js";
 import { formatMeasureServiceItemForCard } from "./measureServiceItems.js";
 
 /**
@@ -43,7 +44,7 @@ function addressText(draft: OrderDraft): string {
 }
 
 function paymentText(draft: OrderDraft): string {
-  const paymentBy = valueOrDash(draft.paymentBy);
+  const paymentBy = valueOrDash(formatMeasurePaymentForCard(draft.paymentBy));
   return `Оплата ${paymentBy}.`;
 }
 
