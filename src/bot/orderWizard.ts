@@ -5,6 +5,12 @@ import type { SalonRequiredItemRepository } from "../db/salonRequiredItemReposit
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
 import { formatOrderCard } from "./formatOrderCard.js";
+import {
+  getMeasureServiceItemByKey,
+  isMeasureServiceItemType,
+  measureServiceItems
+} from "./measureServiceItems.js";
+import { safeAnswerCbQuery } from "./safeAnswerCbQuery.js";
 import type { AuthenticatedUser } from "../types/auth.js";
 import type {
   AcceptedOrder,
@@ -33,18 +39,6 @@ const paymentByByCode: Record<string, PaymentBy> = {
   deposit: "депозит",
   ipToSelfEmployed: "с ИП на самозанятого"
 };
-
-const serviceItemTypes: ServiceItemType[] = [
-  "кухня",
-  "ниша под шкаф",
-  "тумба под раковину",
-  "гардеробная",
-  "инсталляция",
-  "ТВ-зона",
-  "рабочая зона",
-  "стеновые панели",
-  "другое"
-];
 
 const sessions = new Map<string, WizardSession>();
 const pendingAuthTelegramUserIds = new Set<string>();
@@ -107,7 +101,7 @@ export function registerOrderWizard(
   });
 
   bot.action(/^salon:page:(\d+)$/, async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
     if (!session || session.step !== "selectSalon") {
@@ -120,7 +114,7 @@ export function registerOrderWizard(
   });
 
   bot.action(/^salon:select:(\d+)$/, async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
     if (!session || session.step !== "selectSalon") {
@@ -154,23 +148,22 @@ export function registerOrderWizard(
     await replyQuestion(ctx, "2. Контакт менеджера?");
   });
 
-  bot.action(/^service_item:(\d+)$/, async (ctx) => {
-    await ctx.answerCbQuery();
+  bot.action(/^service_item:([a-z0-9_]+)$/, async (ctx) => {
+    await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
-    const itemIndex = Number.parseInt(ctx.match[1] ?? "", 10);
-    const serviceItemType = serviceItemTypes[itemIndex];
+    const serviceItem = getMeasureServiceItemByKey(ctx.match[1] ?? "");
 
-    if (!session || session.step !== "selectServiceItem" || !serviceItemType) {
+    if (!session || session.step !== "selectServiceItem" || !serviceItem) {
       await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
       return;
     }
 
-    await addServiceItem(ctx, session, serviceItemType);
+    await addServiceItem(ctx, session, serviceItem.itemType);
   });
 
   bot.action("finish_items", async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
     if (!session || session.step !== "selectServiceItem") {
@@ -187,7 +180,7 @@ export function registerOrderWizard(
   });
 
   bot.action(/^payment:(client|salon|deposit|ipToSelfEmployed)$/, async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
     const paymentBy = paymentByByCode[ctx.match[1] ?? ""];
@@ -207,7 +200,7 @@ export function registerOrderWizard(
     const userId = ctx.from?.id;
     const session = sessionKey ? sessions.get(sessionKey) : undefined;
 
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
 
     if (!userId || !sessionKey || !session || session.step !== "preview") {
       await ctx.reply("Черновик не найден. Начните новую заявку.", mainKeyboardForChat(ctx));
@@ -239,17 +232,17 @@ export function registerOrderWizard(
   });
 
   bot.action("restart_order", async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
     await startNewOrder(ctx, salonRepository, salonRequiredItemRepository, telegramUserRepository);
   });
 
   bot.action("cancel_order", async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
     await cancelOrder(ctx);
   });
 
   bot.action("skip_optional", async (ctx) => {
-    await ctx.answerCbQuery();
+    await safeAnswerCbQuery(ctx);
 
     const session = getSession(ctx);
     if (!session) {
@@ -678,7 +671,7 @@ async function askServiceItem(ctx: Context): Promise<void> {
  * @returns {boolean} true, если текст является ServiceItemType.
  */
 function isServiceItemType(text: string): text is ServiceItemType {
-  return serviceItemTypes.includes(text as ServiceItemType);
+  return isMeasureServiceItemType(text);
 }
 
 /**
@@ -786,22 +779,24 @@ function salonsKeyboard(salons: { salon_id: number; salon_name: string }[], page
 function serviceItemsKeyboard(canFinish: boolean) {
   const rows = [
     [
-      Markup.button.callback("кухня", "service_item:0"),
-      Markup.button.callback("ниша под шкаф", "service_item:1")
+      serviceItemButton("kitchen"),
+      serviceItemButton("wardrobe")
     ],
-    [Markup.button.callback("тумба под раковину", "service_item:2")],
+    [serviceItemButton("closet_niche")],
+    [serviceItemButton("sink_cabinet")],
     [
-      Markup.button.callback("гардеробная", "service_item:3"),
-      Markup.button.callback("инсталляция", "service_item:4")
-    ],
-    [
-      Markup.button.callback("ТВ-зона", "service_item:5"),
-      Markup.button.callback("рабочая зона", "service_item:6")
+      serviceItemButton("dressing_room"),
+      serviceItemButton("installation")
     ],
     [
-      Markup.button.callback("стеновые панели", "service_item:7"),
-      Markup.button.callback("другое", "service_item:8")
-    ]
+      serviceItemButton("tv_zone"),
+      serviceItemButton("work_zone")
+    ],
+    [
+      serviceItemButton("wall_panels"),
+      serviceItemButton("by_plan")
+    ],
+    [serviceItemButton("other")]
   ];
 
   if (canFinish) {
@@ -810,6 +805,16 @@ function serviceItemsKeyboard(canFinish: boolean) {
 
   rows.push([Markup.button.callback(cancelText, "cancel_order")]);
   return Markup.inlineKeyboard(rows);
+}
+
+function serviceItemButton(key: string) {
+  const item = measureServiceItems.find((candidate) => candidate.key === key);
+
+  if (!item) {
+    throw new Error(`Unknown measure service item: ${key}`);
+  }
+
+  return Markup.button.callback(item.buttonLabel, `service_item:${item.key}`);
 }
 
 /**

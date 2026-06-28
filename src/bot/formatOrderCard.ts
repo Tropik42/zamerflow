@@ -1,4 +1,5 @@
 import type { OrderDraft } from "../types/order.js";
+import { formatMeasureServiceItemForCard } from "./measureServiceItems.js";
 
 /**
  * Возвращает строковое значение или прочерк для пустого поля.
@@ -43,9 +44,7 @@ function addressText(draft: OrderDraft): string {
 
 function paymentText(draft: OrderDraft): string {
   const paymentBy = valueOrDash(draft.paymentBy);
-  return draft.isPaymentByFixed && draft.paymentBy
-    ? `Оплата ${paymentBy} (всегда).`
-    : `Оплата ${paymentBy}.`;
+  return `Оплата ${paymentBy}.`;
 }
 
 /**
@@ -59,7 +58,7 @@ export function formatOrderCard(draft: OrderDraft): string {
   const firstServiceItem = userServiceItems[0]?.type;
   const extraServiceItemsText = userServiceItems
     .slice(1)
-    .map((item) => `- ${serviceItemText(item.type)}`)
+    .map((item) => `- ${formatMeasureServiceItemForCard(item.type)}`)
     .join("\n");
   const autoAddedItemsText = autoAddedItems
     .map((item) => `🟣 ${item.itemNameSnapshot ?? item.type}`)
@@ -81,7 +80,7 @@ export function formatOrderCard(draft: OrderDraft): string {
     "",
     `📍 ${addressText(draft)}`,
     `📞 ${valueOrDash(draft.clientContact)}`,
-    `✏️ Замер ${firstServiceItem ? serviceItemText(firstServiceItem) : "-"}`,
+    `✏️ Замер ${firstServiceItem ? formatMeasureServiceItemForCard(firstServiceItem) : "-"}`,
     extraServiceItemsText || undefined,
     autoAddedItemsText || undefined,
     "",
@@ -98,8 +97,4 @@ export function formatOrderCard(draft: OrderDraft): string {
   ];
 
   return lines.filter((line) => line !== undefined).join("\n");
-}
-
-function serviceItemText(itemType: string): string {
-  return itemType === "кухня" ? "кухни" : itemType;
 }

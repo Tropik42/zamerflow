@@ -1,5 +1,6 @@
 export type ServiceItemType =
   | "кухня"
+  | "шкаф"
   | "ниша под шкаф"
   | "тумба под раковину"
   | "гардеробная"
@@ -7,6 +8,7 @@ export type ServiceItemType =
   | "ТВ-зона"
   | "рабочая зона"
   | "стеновые панели"
+  | "по плану"
   | "другое";
 
 export interface ServiceItem {

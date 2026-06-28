@@ -1,6 +1,8 @@
 import "dotenv/config";
+import type { Context, Telegraf } from "telegraf";
 import { startAdminServer } from "./admin/server.js";
 import { createBot } from "./bot/bot.js";
+import { safeErrorMessage } from "./bot/errorLogging.js";
 import { loadConfig } from "./config.js";
 import { createDatabase } from "./db/db.js";
 import { createManagerAuthCodeRepository } from "./db/managerAuthCodeRepository.js";
@@ -40,7 +42,15 @@ const adminServer = await startAdminServer({
   orderRepository
 });
 
-await bot.launch();
+try {
+  await launchBotWithRetry(bot);
+} catch (error) {
+  const message = safeErrorMessage(error);
+  console.error(`ZamerFlow bot failed to start after retries: ${message}`);
+  await adminServer.close();
+  db.close();
+  process.exit(1);
+}
 
 console.log("ZamerFlow bot started in long polling mode.");
 console.log(`ZamerFlow admin started at http://localhost:${config.adminPort}/admin`);
@@ -59,3 +69,32 @@ process.once("SIGINT", () => {
 process.once("SIGTERM", () => {
   void shutdown("SIGTERM");
 });
+
+async function launchBotWithRetry(botToLaunch: Telegraf<Context>): Promise<void> {
+  const maxAttempts = 5;
+  const retryDelayMs = 3000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      // MVP/dev tradeoff: updates sent while the bot was offline can be lost,
+      // but stale inline callbacks after restart should not be replayed.
+      await botToLaunch.launch({ dropPendingUpdates: true });
+      return;
+    } catch (error) {
+      const message = safeErrorMessage(error);
+      console.warn(`Telegram bot launch attempt ${attempt}/${maxAttempts} failed: ${message}`);
+
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+
+      await delay(retryDelayMs);
+    }
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}

@@ -4,6 +4,7 @@ import type { OrderRepository } from "../db/orderRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
+import { safeErrorMessage } from "./errorLogging.js";
 import { registerOrderWizard } from "./orderWizard.js";
 
 /**
@@ -22,6 +23,16 @@ export function createBot(
   managerAuthCodeRepository: ManagerAuthCodeRepository
 ): Telegraf<Context> {
   const bot = new Telegraf<Context>(botToken);
+
+  bot.catch((error, ctx) => {
+    const message = safeErrorMessage(error);
+    const errorName = error instanceof Error ? error.name : typeof error;
+    const updateId = ctx.update.update_id;
+
+    console.error(
+      `Telegram update handling failed: update_id=${updateId}, error=${errorName}, message=${message}`
+    );
+  });
 
   registerOrderWizard(
     bot,

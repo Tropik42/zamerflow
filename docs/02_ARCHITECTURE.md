@@ -61,6 +61,8 @@ Telegraf-бот работает через long polling.
 
 Webhook пока не используется.
 
+Запуск бота выполняется с ограниченным retry. При старте long polling используется `dropPendingUpdates: true`: updates, отправленные во время простоя процесса, могут быть отброшены, зато старые inline callback-и после рестарта не должны повторно ломать процесс.
+
 ### Админка
 
 Fastify-сервер отдаёт server-rendered HTML.
@@ -128,6 +130,8 @@ docs/
 * запуск Fastify-админки;
 * запуск Telegraf long polling;
 * graceful shutdown для SIGINT/SIGTERM.
+
+При временной сетевой ошибке Telegram API запуск бота пробуется повторно несколько раз. Если все попытки исчерпаны, процесс завершает старт с ошибкой.
 
 ### `src/bot/`
 
