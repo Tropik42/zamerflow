@@ -43,6 +43,20 @@ export async function startAdminServer(options: AdminServerOptions): Promise<Fas
     }
   });
 
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode = getErrorStatusCode(error);
+    const message = error instanceof Error ? error.message : String(error);
+
+    console.error(
+      `Fastify request failed: method=${request.method}, url=${request.url}, status=${statusCode}, message=${message}`
+    );
+    reply.send(error);
+  });
+
+  app.get("/health", async () => {
+    return { ok: true };
+  });
+
   app.get("/admin", async () => {
     return layout(
       "Админка",
@@ -69,5 +83,15 @@ export async function startAdminServer(options: AdminServerOptions): Promise<Fas
   registerOrderRoutes(app, options.orderRepository);
 
   await app.listen({ port: options.port, host: "0.0.0.0" });
+  console.info(`ZamerFlow admin listening on port ${options.port}.`);
   return app;
+}
+
+function getErrorStatusCode(error: unknown): number {
+  if (typeof error === "object" && error !== null && "statusCode" in error) {
+    const statusCode = Number((error as { statusCode?: unknown }).statusCode);
+    return Number.isInteger(statusCode) ? statusCode : 500;
+  }
+
+  return 500;
 }

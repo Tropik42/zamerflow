@@ -9,6 +9,8 @@ import path from "node:path";
  * @returns {void}
  */
 export function runMigrations(db: AppDatabase, migrationsDir = "migrations"): void {
+  console.info("ZamerFlow migrations: checking for pending migrations.");
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename TEXT PRIMARY KEY,
@@ -36,14 +38,19 @@ export function runMigrations(db: AppDatabase, migrationsDir = "migrations"): vo
     }
 
     const sql = fs.readFileSync(path.join(resolvedDir, filename), "utf8");
+    console.info(`ZamerFlow migrations: applying ${filename}.`);
 
     if (hasExplicitTransaction(sql)) {
       db.exec(addMarkAppliedToExplicitTransaction(sql, filename));
+      console.info(`ZamerFlow migrations: applied ${filename}.`);
       continue;
     }
 
     applyMigration(filename, sql);
+    console.info(`ZamerFlow migrations: applied ${filename}.`);
   }
+
+  console.info("ZamerFlow migrations: complete.");
 }
 
 /**

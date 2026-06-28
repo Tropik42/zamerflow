@@ -133,7 +133,7 @@ systemctl status zamerflow
 
 ## Healthcheck
 
-Нужно добавить endpoint:
+Приложение отдаёт endpoint:
 
 ```text
 /health
@@ -145,7 +145,7 @@ systemctl status zamerflow
 {"ok":true}
 ```
 
-Пока healthcheck не реализован, проверка деплоя ручная:
+Дополнительно проверить деплой вручную:
 
 * процесс запущен;
 * бот отвечает;
@@ -173,5 +173,4 @@ systemctl status zamerflow
 * настроить nginx;
 * закрыть админку Basic Auth;
 * настроить backup SQLite;
-* добавить `/health`;
 * описать фактические команды после первого успешного деплоя.

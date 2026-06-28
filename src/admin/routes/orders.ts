@@ -21,7 +21,7 @@ export function registerOrderRoutes(app: FastifyInstance, orderRepository: Order
           "measure_date",
           "measure_time",
           "address",
-          "final/base price",
+          "base_price",
           ""
         ],
         orders.map((order) => [
@@ -34,7 +34,7 @@ export function registerOrderRoutes(app: FastifyInstance, orderRepository: Order
           value(order.measure_date),
           value(order.measure_time),
           value(order.address),
-          value(order.final_price ?? order.base_price),
+          value(order.base_price),
           `<a href="/admin/orders/${order.order_id}">открыть</a>`
         ])
       )}`
@@ -113,7 +113,6 @@ function orderDetails(order: OrderRecord): string {
     ["extra_price_min", order.extra_price_min],
     ["extra_price_max", order.extra_price_max],
     ["mileage_price_per_km", order.mileage_price_per_km],
-    ["final_price", order.final_price],
     ["extra_charges", order.extra_charges],
     ["comment", order.comment],
     ["has_plan", order.has_plan]

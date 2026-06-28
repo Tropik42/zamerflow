@@ -13,6 +13,8 @@ import { createSalonRequiredItemRepository } from "./db/salonRequiredItemReposit
 import { createSalonRepository } from "./db/salonRepository.js";
 import { createTelegramUserRepository } from "./db/telegramUserRepository.js";
 
+console.info("ZamerFlow application starting.");
+
 const config = loadConfig();
 const db = createDatabase(config.databasePath);
 
@@ -33,6 +35,7 @@ const bot = createBot(
   managerAuthCodeRepository
 );
 
+console.info("ZamerFlow admin starting.");
 const adminServer = await startAdminServer({
   port: config.adminPort,
   salonRepository,
@@ -43,6 +46,7 @@ const adminServer = await startAdminServer({
 });
 
 try {
+  console.info("ZamerFlow bot starting in long polling mode.");
   await launchBotWithRetry(bot);
 } catch (error) {
   const message = safeErrorMessage(error);
@@ -52,10 +56,12 @@ try {
   process.exit(1);
 }
 
-console.log("ZamerFlow bot started in long polling mode.");
-console.log(`ZamerFlow admin started at http://localhost:${config.adminPort}/admin`);
+console.info("ZamerFlow bot started in long polling mode.");
+console.info(`ZamerFlow admin started at http://localhost:${config.adminPort}/admin`);
+console.info(`ZamerFlow healthcheck available at http://localhost:${config.adminPort}/health`);
 
 async function shutdown(signal: "SIGINT" | "SIGTERM"): Promise<void> {
+  console.info(`ZamerFlow application stopping: signal=${signal}.`);
   bot.stop(signal);
   await adminServer.close();
   db.close();

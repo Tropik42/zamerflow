@@ -42,12 +42,20 @@ SQLite database files нельзя коммитить.
 * `data/*.sqlite-journal`;
 * `data/*.sqlite-wal`;
 * `data/*.sqlite-shm`;
+* `data/*.sqlite-*`;
+* `data/*.db`;
+* `data/*.db-*`;
+* `logs/`;
+* `backups/`;
 * backup-файлы с production-данными.
 
-Рекомендуется добавить в `.gitignore`:
+В `.gitignore` должны быть закрыты:
 
 ```gitignore
+data/*.sqlite
 data/*.sqlite-*
+data/*.db
+data/*.db-*
 backups/
 logs/
 ```

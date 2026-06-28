@@ -4,6 +4,7 @@ import type { OrderRepository } from "../db/orderRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
+import { safeErrorMessage } from "./errorLogging.js";
 import { formatOrderCard } from "./formatOrderCard.js";
 import {
   getMeasurePaymentOptionByKey,
@@ -234,7 +235,15 @@ export function registerOrderWizard(
       telegramUserId: String(userId)
     };
 
-    orderRepository.create(order);
+    try {
+      orderRepository.create(order);
+    } catch (error) {
+      console.error(
+        `Order save failed: telegram_user_id=${userId}, salon_id=${session.draft.salonId ?? "-"}, manager_id=${session.draft.managerId ?? "-"}, message=${safeErrorMessage(error)}`
+      );
+      throw error;
+    }
+
     sessions.delete(sessionKey);
 
     await ctx.reply(

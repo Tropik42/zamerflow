@@ -1,6 +1,9 @@
 import type { OrderDraft } from "../types/order.js";
 import { formatMeasurePaymentForCard } from "./measurePaymentOptions.js";
-import { formatMeasureServiceItemForCard } from "./measureServiceItems.js";
+import {
+  formatMeasureServiceItemForCardFirst,
+  formatMeasureServiceItemForCardList
+} from "./measureServiceItems.js";
 
 /**
  * Возвращает строковое значение или прочерк для пустого поля.
@@ -59,7 +62,7 @@ export function formatOrderCard(draft: OrderDraft): string {
   const firstServiceItem = userServiceItems[0]?.type;
   const extraServiceItemsText = userServiceItems
     .slice(1)
-    .map((item) => `- ${formatMeasureServiceItemForCard(item.type)}`)
+    .map((item) => `- ${formatMeasureServiceItemForCardList(item.type)}`)
     .join("\n");
   const autoAddedItemsText = autoAddedItems
     .map((item) => `🟣 ${item.itemNameSnapshot ?? item.type}`)
@@ -81,7 +84,7 @@ export function formatOrderCard(draft: OrderDraft): string {
     "",
     `📍 ${addressText(draft)}`,
     `📞 ${valueOrDash(draft.clientContact)}`,
-    `✏️ Замер ${firstServiceItem ? formatMeasureServiceItemForCard(firstServiceItem) : "-"}`,
+    `✏️ Замер ${firstServiceItem ? formatMeasureServiceItemForCardFirst(firstServiceItem) : "-"}`,
     extraServiceItemsText || undefined,
     autoAddedItemsText || undefined,
     "",
