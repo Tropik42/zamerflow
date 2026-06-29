@@ -2,13 +2,12 @@
 
 ## Текущий статус
 
-CI/CD ещё предстоит настроить.
+Для MVP настроены два GitHub Actions workflow:
 
-Сейчас доступна локальная проверка:
+* `CI` — автоматическая проверка на `push` в `main` и на `pull_request`;
+* `Deploy Production` — ручной production deploy через `workflow_dispatch`.
 
-```bash
-npm run typecheck
-```
+Оба workflow используют Node.js 22, `npm ci` и `npm run typecheck`.
 
 ## Цель
 
@@ -16,71 +15,88 @@ npm run typecheck
 
 * проверяет TypeScript;
 * не даёт случайно сломать main;
-* в будущем деплоит на VPS;
-* делает backup SQLite перед деплоем;
-* применяет миграции на старте приложения;
-* проверяет healthcheck после рестарта.
+* запускает production deploy только вручную;
+* не хранит production `.env` и секреты в репозитории;
+* вызывает серверный deploy script на VPS по SSH.
 
-## MVP CI
+## CI
 
-Минимальный workflow:
-
-```yaml
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
-jobs:
-  typecheck:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-```
-
-## Deploy pipeline
-
-Будущий deploy flow:
+Workflow:
 
 ```text
-push to main
-→ npm ci
-→ npm run typecheck
-→ SSH на VPS
-→ backup SQLite
-→ git pull или rsync/scp
-→ npm ci
-→ restart systemd service
-→ healthcheck
+.github/workflows/ci.yml
 ```
+
+Запускается автоматически:
+
+* `push` в `main`;
+* `pull_request`.
+
+Шаги:
+
+* `actions/checkout@v4`;
+* `actions/setup-node@v4` с Node.js 22 и npm cache;
+* `npm ci`;
+* `npm run typecheck`.
+
+## Deploy Production
+
+Workflow:
+
+```text
+.github/workflows/deploy-production.yml
+```
+
+Запускается только вручную через GitHub Actions `workflow_dispatch`.
+
+Перед deploy выполняется job `check`:
+
+* checkout;
+* setup Node.js 22;
+* `npm ci`;
+* `npm run typecheck`.
+
+После успешной проверки job `deploy` подключается к VPS по SSH и запускает:
+
+```bash
+sudo /usr/local/sbin/zamerflow-deploy.sh
+```
+
+GitHub Actions не содержит production deploy logic полностью. Источником production deploy logic остаётся серверный script:
+
+```text
+/usr/local/sbin/zamerflow-deploy.sh
+```
+
+Серверный script отвечает за:
+
+* backup SQLite перед обновлением;
+* `git pull --ff-only`;
+* `npm ci`;
+* `npm run typecheck`;
+* `systemctl restart zamerflow`;
+* проверку `/health`;
+* вывод последних логов.
+
+Deploy не запускается автоматически на каждый push.
 
 ## GitHub Secrets
 
 Для деплоя использовать GitHub Secrets:
 
 * `VPS_HOST`;
+* `VPS_PORT`;
 * `VPS_USER`;
 * `VPS_SSH_KEY`;
-* `VPS_PORT`;
-* `APP_DIR`;
-* при необходимости production env values.
+* `VPS_KNOWN_HOSTS`.
 
-Не хранить секреты в репозитории.
+GitHub Actions не хранит production `.env`. Production `BOT_TOKEN`, путь к production SQLite и другие runtime secrets остаются на VPS.
 
 ## Миграции в CI/CD
 
 Миграции применяются приложением на старте.
 
-Перед production restart обязательно делать backup SQLite.
+Перед production restart серверный deploy script обязательно делает backup SQLite.
 
 Если миграция упала:
 
@@ -98,12 +114,32 @@ journalctl -u zamerflow -n 100
 curl -f http://localhost:3000/health
 ```
 
-Пока `/health` не реализован, проверка ручная:
+Если workflow упал:
 
-* бот отвечает;
-* `/admin` доступен;
-* заявка создаётся;
-* ошибок в логах нет.
+* сначала смотреть logs workflow в GitHub Actions;
+* затем смотреть VPS logs через `journalctl -u zamerflow`;
+* проверять, создался ли backup SQLite перед деплоем.
+
+## Как пользоваться
+
+CI:
+
+* открыть репозиторий GitHub;
+* перейти в `Actions`;
+* открыть workflow `CI`;
+* смотреть job `typecheck`.
+
+Production deploy:
+
+* открыть репозиторий GitHub;
+* перейти в `Actions`;
+* открыть workflow `Deploy Production`;
+* нажать `Run workflow`;
+* выбрать ветку, обычно `main`;
+* дождаться job `check`;
+* затем проверить job `deploy`.
+
+В логах workflow не должно быть `.env`, токенов, SQLite backup, SQL dumps или приватных ключей.
 
 ## Что не делать пока
 
@@ -115,4 +151,4 @@ curl -f http://localhost:3000/health
 * staging/prod matrix;
 * сложные approval gates.
 
-Сначала достаточно typecheck + простой SSH deploy.
+Для MVP достаточно typecheck + ручной SSH deploy через серверный script.

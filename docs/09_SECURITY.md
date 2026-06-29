@@ -146,6 +146,27 @@ Production VPS должен использовать:
 
 Для CI/CD использовать GitHub Secrets.
 
+## CI/CD
+
+Production secrets хранить только в GitHub Secrets и на VPS.
+
+Для GitHub Actions deploy нужны:
+
+* `VPS_HOST`;
+* `VPS_PORT`;
+* `VPS_USER`;
+* `VPS_SSH_KEY`;
+* `VPS_KNOWN_HOSTS`.
+
+Правила:
+
+* приватный SSH-ключ нельзя коммитить;
+* production `.env` нельзя передавать в workflow;
+* deploy-пользователь на VPS должен иметь минимальные права;
+* желательно разрешить deploy-пользователю через `sudo` только команду `/usr/local/sbin/zamerflow-deploy.sh`;
+* в logs workflow нельзя выводить `.env`, токены, SQLite backup, SQL dumps и приватные ключи;
+* GitHub Actions должен только вызывать серверный deploy script, а не хранить всю production-логику в YAML.
+
 ## MVP-минимум перед production
 
 Перед открытием production нужно:

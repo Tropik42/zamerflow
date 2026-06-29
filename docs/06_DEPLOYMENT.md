@@ -144,6 +144,41 @@ systemctl status zamerflow
 
 Миграции применяются на старте приложения.
 
+## GitHub Actions Deploy
+
+Для MVP production deploy можно запускать вручную из GitHub Actions workflow `Deploy Production`.
+
+Важно: источником production deploy logic остаётся серверный script на VPS:
+
+```text
+/usr/local/sbin/zamerflow-deploy.sh
+```
+
+GitHub Actions только:
+
+* выполняет `npm ci` и `npm run typecheck` в job `check`;
+* подключается к VPS по SSH;
+* запускает `sudo /usr/local/sbin/zamerflow-deploy.sh`.
+
+Серверный script должен делать:
+
+* backup SQLite перед обновлением;
+* `git pull --ff-only`;
+* `npm ci`;
+* `npm run typecheck`;
+* restart `zamerflow`;
+* проверку `/health`;
+* вывод последних логов.
+
+Production `.env`, `BOT_TOKEN`, SQLite-файл и backup-файлы не передаются в GitHub Actions.
+
+Если workflow упал, смотреть:
+
+* GitHub Actions logs;
+* `journalctl -u zamerflow` на VPS;
+* результат `/health`;
+* наличие свежего backup SQLite.
+
 ## Healthcheck
 
 Приложение отдаёт endpoint:
@@ -177,13 +212,12 @@ systemctl status zamerflow
 * отдельный frontend server;
 * сложный deployment orchestrator.
 
-## Ближайшие задачи деплоя
+## Ближайшие задачи эксплуатации
 
-* выбрать VPS;
-* создать пользователя `zamerflow`;
-* настроить `.env`;
-* настроить systemd или pm2;
-* настроить nginx;
-* закрыть админку Basic Auth;
-* настроить backup SQLite;
-* описать фактические команды после первого успешного деплоя.
+* проверить фактический systemd/pm2 unit и зафиксировать его в документации;
+* проверить nginx reverse proxy и Basic Auth;
+* проверить регулярность backup SQLite;
+* проверить ручной deploy script `/usr/local/sbin/zamerflow-deploy.sh`;
+* настроить GitHub Actions Secrets для ручного deploy;
+* проверить production deploy через workflow `Deploy Production`;
+* описать фактические команды восстановления из backup.

@@ -460,3 +460,52 @@ Production-бот ZamerFlow уже работает на VPS через Telegram
 * нельзя надёжно фильтровать заявки по точному времени;
 * нельзя строить календарные интервалы без будущей нормализации;
 * аналитика по времени потребует отдельного решения позже.
+
+---
+
+## ADR-015: MVP CI/CD через GitHub Actions и ручной SSH deploy
+
+Дата: 2026-06-29
+
+Статус: Accepted
+
+Контекст:
+
+Production уже работает на VPS. На сервере есть deploy script `/usr/local/sbin/zamerflow-deploy.sh`, который выполняет backup SQLite, обновление кода, установку зависимостей, typecheck, restart сервиса, healthcheck и вывод логов. Для MVP нужен минимальный CI/CD без Docker, Kubernetes, self-hosted runner и сложной release-инфраструктуры.
+
+Решение:
+
+Использовать GitHub Actions:
+
+* `CI` автоматически запускается на `push` в `main` и `pull_request`;
+* `Deploy Production` запускается только вручную через `workflow_dispatch`;
+* перед deploy выполняются `npm ci` и `npm run typecheck`;
+* deploy job подключается к VPS по SSH и вызывает `sudo /usr/local/sbin/zamerflow-deploy.sh`;
+* production secrets хранятся в GitHub Secrets и на VPS, но не в репозитории;
+* backup SQLite остаётся обязанностью серверного deploy script.
+
+Отклонённые альтернативы:
+
+* self-hosted runner на production VPS;
+* автодеплой на каждый push;
+* Docker registry;
+* Kubernetes deploy;
+* blue-green deploy;
+* staging/prod matrix.
+
+Последствия:
+
+Плюсы:
+
+* CI защищает `main` базовой проверкой TypeScript;
+* production deploy остаётся ручным и контролируемым;
+* production logic остаётся на VPS в одном deploy script;
+* не нужен self-hosted runner с доступом к production-файлам;
+* схема простая и соответствует MVP.
+
+Минусы:
+
+* деплой зависит от доступности VPS по SSH;
+* GitHub Secrets нужно настроить вручную;
+* server-side deploy script остаётся отдельной эксплуатационной ответственностью;
+* нет автоматического staging и advanced rollback.
