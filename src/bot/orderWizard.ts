@@ -206,7 +206,7 @@ export function registerOrderWizard(
 
     session.draft.paymentBy = paymentOption.value;
     session.step = "extraCharges";
-    await replyQuestion(ctx, "9. Доплаты / особенности. Можно пропустить.", true);
+    await replyQuestion(ctx, "10. Доплаты / особенности. Можно пропустить.", true);
   });
 
   bot.action("accept_order", async (ctx) => {
@@ -532,6 +532,16 @@ async function handleText(
       return;
     case "measureDate":
       session.draft.measureDate = text;
+      session.step = "measureTime";
+      await askMeasureTime(ctx);
+      return;
+    case "measureTime":
+      if (text === skipText) {
+        await skipOptionalStep(ctx, session);
+        return;
+      }
+
+      session.draft.measureTime = text;
       session.step = "selectServiceItem";
       await askServiceItem(ctx);
       return;
@@ -552,7 +562,7 @@ async function handleText(
 
       session.draft.extraCharges = text;
       session.step = "comment";
-      await replyQuestion(ctx, "10. Комментарий. Можно пропустить.", true);
+      await replyQuestion(ctx, "11. Комментарий. Можно пропустить.", true);
       return;
     case "comment":
       if (text === skipText) {
@@ -657,18 +667,31 @@ async function handlePaymentBy(
 
   session.draft.paymentBy = text;
   session.step = "extraCharges";
-  await replyQuestion(ctx, "9. Доплаты / особенности. Можно пропустить.", true);
+  await replyQuestion(ctx, "10. Доплаты / особенности. Можно пропустить.", true);
 }
 
 async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): Promise<void> {
   if (session.draft.paymentBy) {
     session.step = "extraCharges";
-    await replyQuestion(ctx, "9. Доплаты / особенности. Можно пропустить.", true);
+    await replyQuestion(ctx, "10. Доплаты / особенности. Можно пропустить.", true);
     return;
   }
 
   session.step = "paymentBy";
-  await ctx.reply("8. Кто оплачивает замер?", paymentKeyboard());
+  await ctx.reply("9. Кто оплачивает замер?", paymentKeyboard());
+}
+
+async function askMeasureTime(ctx: Context): Promise<void> {
+  await replyQuestion(
+    ctx,
+    [
+      "7. Желаемое время прибытия замерщика? Можно пропустить.",
+      "Если менеджер указал время, интервал или формулировку — передай строго как написано:",
+      "\"утром\", \"первая половина дня\", \"с 13 до 15\", \"в 19:00\".",
+      "Если времени нет — нажми «Пропустить»."
+    ].join("\n"),
+    true
+  );
 }
 
 /**
@@ -677,7 +700,7 @@ async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): P
  * @returns {Promise<void>}
  */
 async function askServiceItem(ctx: Context): Promise<void> {
-  await ctx.reply("7. Позиции под замер с количеством. Выберите позицию.", serviceItemsKeyboard(false));
+  await ctx.reply("8. Позиции под замер с количеством. Выберите позицию.", serviceItemsKeyboard(false));
 }
 
 /**
@@ -983,10 +1006,15 @@ async function skipOptionalStep(ctx: Context, session: WizardSession): Promise<v
       session.step = "measureDate";
       await replyQuestion(ctx, "6. Дата замера.");
       return;
+    case "measureTime":
+      session.draft.measureTime = undefined;
+      session.step = "selectServiceItem";
+      await askServiceItem(ctx);
+      return;
     case "extraCharges":
       session.draft.extraCharges = undefined;
       session.step = "comment";
-      await replyQuestion(ctx, "10. Комментарий. Можно пропустить.", true);
+      await replyQuestion(ctx, "11. Комментарий. Можно пропустить.", true);
       return;
     case "comment":
       session.draft.comment = undefined;

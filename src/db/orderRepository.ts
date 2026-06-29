@@ -234,7 +234,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       managerPhoneSnapshot: order.managerPhoneSnapshot ?? order.managerContact ?? null,
       managerRoleSnapshot: order.managerRoleSnapshot ?? null,
       measureDate: order.measureDate ?? null,
-      measureTime: null,
+      measureTime: order.measureTime ?? null,
       address: order.address,
       metro: order.metro ?? null,
       clientContact: order.clientContact ?? null,

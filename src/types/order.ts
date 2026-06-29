@@ -98,6 +98,7 @@ export interface OrderDraft {
   address?: string;
   metro?: string;
   measureDate?: string;
+  measureTime?: string;
   serviceItems: ServiceItem[];
   paymentBy?: PaymentBy;
   isPaymentByFixed?: boolean;
@@ -120,6 +121,7 @@ export interface AcceptedOrder {
   address: string;
   metro?: string;
   measureDate?: string;
+  measureTime?: string;
   serviceItems: ServiceItem[];
   paymentBy?: PaymentBy;
   basePrice?: number;
@@ -170,6 +172,7 @@ export type WizardStep =
   | "address"
   | "metro"
   | "measureDate"
+  | "measureTime"
   | "selectServiceItem"
   | "manualServiceItem"
   | "paymentBy"

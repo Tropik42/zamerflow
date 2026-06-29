@@ -51,6 +51,13 @@ function paymentText(draft: OrderDraft): string {
   return `Оплата ${paymentBy}.`;
 }
 
+function titleText(draft: OrderDraft): string {
+  const dateText = valueOrDash(draft.measureDate);
+  const timeText = draft.measureTime?.trim();
+
+  return timeText ? `*На ${dateText} ${timeText} ❗*` : `*На ${dateText}*`;
+}
+
 /**
  * Собирает рабочий текст карточки заявки из черновика.
  * @param {OrderDraft} draft Черновик заявки из Telegram-сценария.
@@ -77,7 +84,7 @@ export function formatOrderCard(draft: OrderDraft): string {
       : "-";
 
   const lines = [
-    `*На ${valueOrDash(draft.measureDate)}*`,
+    titleText(draft),
     `_"${valueOrDash(draft.salonNameSnapshot)}"_`,
     draft.salonEmailSnapshot ? `💌 ${draft.salonEmailSnapshot}` : undefined,
     `${managerLabel(draft)}: ${valueOrDash(managerText(draft))}`,
