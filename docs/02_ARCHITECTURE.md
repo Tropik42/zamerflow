@@ -128,6 +128,17 @@ Telegram bot / Admin UI
 → SQLite
 ```
 
+Внешнее обогащение адреса:
+
+```text
+Telegram wizard
+→ AddressGeoService
+→ DadataClient
+→ DaData Clean Address API
+```
+
+DaData используется как внешний best-effort provider. Ошибка, timeout или неуверенный результат DaData не должны блокировать оформление заявки: карточка формируется без строки километража от МКАД.
+
 Текущее состояние ближе к:
 
 ```text

@@ -4,6 +4,7 @@ import type { OrderRepository } from "../db/orderRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
+import type { AddressGeoService } from "../services/addressGeoService.js";
 import { safeErrorMessage } from "./errorLogging.js";
 import { formatOrderCard } from "./formatOrderCard.js";
 import {
@@ -57,7 +58,8 @@ export function registerOrderWizard(
   salonRepository: SalonRepository,
   salonRequiredItemRepository: SalonRequiredItemRepository,
   telegramUserRepository: TelegramUserRepository,
-  managerAuthCodeRepository: ManagerAuthCodeRepository
+  managerAuthCodeRepository: ManagerAuthCodeRepository,
+  addressGeoService: AddressGeoService
 ): void {
   bot.start(async (ctx) => {
     if (!isPrivateChat(ctx)) {
@@ -272,11 +274,16 @@ export function registerOrderWizard(
       return;
     }
 
-    await skipOptionalStep(ctx, session);
+    await skipOptionalStep(ctx, session, addressGeoService);
   });
 
   bot.on("text", async (ctx) => {
-    await handleText(ctx as TextContext, telegramUserRepository, managerAuthCodeRepository);
+    await handleText(
+      ctx as TextContext,
+      telegramUserRepository,
+      managerAuthCodeRepository,
+      addressGeoService
+    );
   });
 }
 
@@ -472,7 +479,8 @@ async function startNewOrder(
 async function handleText(
   ctx: TextContext,
   telegramUserRepository: TelegramUserRepository,
-  managerAuthCodeRepository: ManagerAuthCodeRepository
+  managerAuthCodeRepository: ManagerAuthCodeRepository,
+  addressGeoService: AddressGeoService
 ): Promise<void> {
   const telegramUserId = getTelegramUserId(ctx);
   if (!telegramUserId) {
@@ -522,7 +530,7 @@ async function handleText(
       return;
     case "metro":
       if (text === skipText) {
-        await skipOptionalStep(ctx, session);
+        await skipOptionalStep(ctx, session, addressGeoService);
         return;
       }
 
@@ -537,7 +545,7 @@ async function handleText(
       return;
     case "measureTime":
       if (text === skipText) {
-        await skipOptionalStep(ctx, session);
+        await skipOptionalStep(ctx, session, addressGeoService);
         return;
       }
 
@@ -556,7 +564,7 @@ async function handleText(
       return;
     case "extraCharges":
       if (text === skipText) {
-        await skipOptionalStep(ctx, session);
+        await skipOptionalStep(ctx, session, addressGeoService);
         return;
       }
 
@@ -566,12 +574,12 @@ async function handleText(
       return;
     case "comment":
       if (text === skipText) {
-        await skipOptionalStep(ctx, session);
+        await skipOptionalStep(ctx, session, addressGeoService);
         return;
       }
 
       session.draft.comment = text;
-      await showPreview(ctx, session);
+      await showPreview(ctx, session, addressGeoService);
       return;
     case "preview":
       await ctx.reply("Используйте кнопки под предпросмотром заявки.");
@@ -976,8 +984,13 @@ async function replyQuestion(ctx: Context, text: string, canSkip = false): Promi
  * @param {WizardSession} session Текущая wizard-сессия.
  * @returns {Promise<void>}
  */
-async function showPreview(ctx: Context, session: WizardSession): Promise<void> {
+async function showPreview(
+  ctx: Context,
+  session: WizardSession,
+  addressGeoService: AddressGeoService
+): Promise<void> {
   session.step = "preview";
+  await enrichDraftAddress(session.draft, addressGeoService);
 
   if (isPrivateChat(ctx)) {
     await ctx.reply("Предпросмотр заявки:", Markup.removeKeyboard());
@@ -988,13 +1001,32 @@ async function showPreview(ctx: Context, session: WizardSession): Promise<void> 
   await ctx.reply(formatOrderCard(session.draft), previewKeyboard());
 }
 
+async function enrichDraftAddress(
+  draft: OrderDraft,
+  addressGeoService: AddressGeoService
+): Promise<void> {
+  const geo = await addressGeoService.enrichAddress(draft.address);
+
+  draft.addressNormalizedSnapshot = geo?.normalizedAddress;
+  draft.addressGeoSource = geo?.source;
+  draft.addressBeltwayHit = geo?.beltwayHit;
+  draft.addressBeltwayDistanceKm = geo?.beltwayDistanceKm;
+  draft.addressGeoQcGeo = geo?.qcGeo;
+  draft.addressGeoQc = geo?.qc;
+  draft.addressGeoQcHouse = geo?.qcHouse;
+}
+
 /**
  * Пропускает текущий необязательный шаг и переводит сценарий дальше.
  * @param {Context} ctx Контекст Telegram-обновления.
  * @param {WizardSession} session Текущая wizard-сессия.
  * @returns {Promise<void>}
  */
-async function skipOptionalStep(ctx: Context, session: WizardSession): Promise<void> {
+async function skipOptionalStep(
+  ctx: Context,
+  session: WizardSession,
+  addressGeoService: AddressGeoService
+): Promise<void> {
   switch (session.step) {
     case "metro":
       session.draft.metro = undefined;
@@ -1013,7 +1045,7 @@ async function skipOptionalStep(ctx: Context, session: WizardSession): Promise<v
       return;
     case "comment":
       session.draft.comment = undefined;
-      await showPreview(ctx, session);
+      await showPreview(ctx, session, addressGeoService);
       return;
     default:
       await ctx.reply("Сейчас этот шаг нельзя пропустить.");

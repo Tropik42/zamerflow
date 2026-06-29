@@ -4,6 +4,7 @@ import type { OrderRepository } from "../db/orderRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
+import type { AddressGeoService } from "../services/addressGeoService.js";
 import { safeErrorMessage } from "./errorLogging.js";
 import { registerOrderWizard } from "./orderWizard.js";
 
@@ -20,7 +21,8 @@ export function createBot(
   salonRepository: SalonRepository,
   salonRequiredItemRepository: SalonRequiredItemRepository,
   telegramUserRepository: TelegramUserRepository,
-  managerAuthCodeRepository: ManagerAuthCodeRepository
+  managerAuthCodeRepository: ManagerAuthCodeRepository,
+  addressGeoService: AddressGeoService
 ): Telegraf<Context> {
   const bot = new Telegraf<Context>(botToken);
 
@@ -40,7 +42,8 @@ export function createBot(
     salonRepository,
     salonRequiredItemRepository,
     telegramUserRepository,
-    managerAuthCodeRepository
+    managerAuthCodeRepository,
+    addressGeoService
   );
 
   return bot;

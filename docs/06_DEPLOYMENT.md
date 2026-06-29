@@ -52,6 +52,7 @@ BOT_ENABLED=true
 BOT_TOKEN=dev_bot_token_for_zamerflow_dev_bot
 DATABASE_PATH=./data/zamerflow-dev.sqlite
 ADMIN_PORT=3001
+DADATA_ENABLED=false
 ```
 
 Production `.env` на VPS:
@@ -62,11 +63,17 @@ BOT_ENABLED=true
 BOT_TOKEN=production_bot_token_here
 DATABASE_PATH=/var/lib/zamerflow/zamerflow.sqlite
 ADMIN_PORT=3000
+DADATA_ENABLED=true
+DADATA_API_KEY=
+DADATA_SECRET_KEY=
+DADATA_TIMEOUT_MS=3000
 ```
 
-Не вставлять реальные токены в документацию, shell history, issue, chat или git.
+Не вставлять реальные токены и DaData-ключи в документацию, shell history, issue, chat или git.
 
 Локальная разработка должна использовать `@zamerflow_dev_bot`. Production `BOT_TOKEN` не используется локально, пока production-сервис работает на VPS.
+
+Перед production-включением DaData нужно положить в production `.env` новые ключи. Если ключи попадали в чат, PR или logs, их нужно перевыпустить в DaData.
 
 ## Каталоги на сервере
 

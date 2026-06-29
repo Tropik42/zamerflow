@@ -98,7 +98,7 @@ export function formatOrderCard(draft: OrderDraft): string {
     `💰 ${paymentText(draft)}`,
     `Стартовая стоимость *от ${moneyOrDash(draft.basePrice)}*.`,
     `Доппозиции *по ${extraPriceText}*.`,
-    draft.mileagePricePerKm !== undefined
+    draft.addressBeltwayHit === "OUT_MKAD" && draft.mileagePricePerKm !== undefined
       ? `Километраж *от МКАД* *${draft.mileagePricePerKm}₽/км*.`
       : undefined,
     autoAddedTariffText || undefined,

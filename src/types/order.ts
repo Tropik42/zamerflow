@@ -79,6 +79,18 @@ export interface SalonRequiredItem {
 
 export type PaymentBy = "клиентом" | "салоном" | "депозит" | "с ИП на самозанятого";
 
+export type BeltwayHit = "IN_MKAD" | "OUT_MKAD" | "IN_KAD" | "OUT_KAD" | "UNKNOWN";
+
+export interface AddressGeoSnapshot {
+  source: "dadata";
+  normalizedAddress?: string;
+  beltwayHit: BeltwayHit;
+  beltwayDistanceKm?: number;
+  qcGeo?: number;
+  qc?: number;
+  qcHouse?: number;
+}
+
 export interface OrderDraft {
   salonId?: number;
   managerId?: number;
@@ -96,6 +108,13 @@ export interface OrderDraft {
   managerContact?: string;
   clientContact?: string;
   address?: string;
+  addressNormalizedSnapshot?: string;
+  addressGeoSource?: string;
+  addressBeltwayHit?: BeltwayHit;
+  addressBeltwayDistanceKm?: number;
+  addressGeoQcGeo?: number;
+  addressGeoQc?: number;
+  addressGeoQcHouse?: number;
   metro?: string;
   measureDate?: string;
   measureTime?: string;
@@ -119,6 +138,13 @@ export interface AcceptedOrder {
   managerContact?: string;
   clientContact?: string;
   address: string;
+  addressNormalizedSnapshot?: string;
+  addressGeoSource?: string;
+  addressBeltwayHit?: BeltwayHit;
+  addressBeltwayDistanceKm?: number;
+  addressGeoQcGeo?: number;
+  addressGeoQc?: number;
+  addressGeoQcHouse?: number;
   metro?: string;
   measureDate?: string;
   measureTime?: string;
@@ -149,6 +175,13 @@ export interface OrderRecord {
   measure_date?: string;
   measure_time?: string;
   address: string;
+  address_normalized_snapshot?: string;
+  address_geo_source?: string;
+  address_beltway_hit?: string;
+  address_beltway_distance_km?: number;
+  address_geo_qc_geo?: number;
+  address_geo_qc?: number;
+  address_geo_qc_house?: number;
   metro?: string;
   foreman_contact?: string;
   client_contact?: string;

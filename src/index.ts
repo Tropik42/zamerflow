@@ -12,9 +12,13 @@ import { createSalonManagerRepository } from "./db/salonManagerRepository.js";
 import { createSalonRequiredItemRepository } from "./db/salonRequiredItemRepository.js";
 import { createSalonRepository } from "./db/salonRepository.js";
 import { createTelegramUserRepository } from "./db/telegramUserRepository.js";
+import { createDadataClient } from "./integrations/dadataClient.js";
+import { createAddressGeoService } from "./services/addressGeoService.js";
 
 const config = loadConfig();
-console.info(`ZamerFlow application starting: env=${config.appEnv}, bot_enabled=${config.botEnabled}.`);
+console.info(
+  `ZamerFlow application starting: env=${config.appEnv}, bot_enabled=${config.botEnabled}, dadata_enabled=${config.dadata.enabled}.`
+);
 
 const db = createDatabase(config.databasePath);
 
@@ -26,6 +30,17 @@ const managerRepository = createSalonManagerRepository(db);
 const salonRequiredItemRepository = createSalonRequiredItemRepository(db);
 const telegramUserRepository = createTelegramUserRepository(db);
 const managerAuthCodeRepository = createManagerAuthCodeRepository(db);
+const dadataClient = config.dadata.enabled
+  ? createDadataClient({
+      apiKey: config.dadata.apiKey,
+      secretKey: config.dadata.secretKey,
+      timeoutMs: config.dadata.timeoutMs
+    })
+  : undefined;
+const addressGeoService = createAddressGeoService({
+  enabled: config.dadata.enabled,
+  dadataClient
+});
 const bot = config.botEnabled
   ? createBot(
       config.botToken,
@@ -33,7 +48,8 @@ const bot = config.botEnabled
       salonRepository,
       salonRequiredItemRepository,
       telegramUserRepository,
-      managerAuthCodeRepository
+      managerAuthCodeRepository,
+      addressGeoService
     )
   : undefined;
 

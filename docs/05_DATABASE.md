@@ -145,6 +145,7 @@ is_payment_by_fixed
 * комментарий;
 * готовый текст карточки;
 * Telegram user id.
+* snapshot-поля результата проверки адреса через DaData.
 
 `final_price` сейчас зарезервирован под будущее, не используется в бизнес-логике и должен сохраняться `NULL`.
 
@@ -153,6 +154,20 @@ is_payment_by_fixed
 `orders.measure_time` — свободный текст пожелания по времени прибытия замерщика.
 
 Он не нормализуется и не парсится. Может содержать `утром`, `первая половина дня`, `с 13 до 15`, `в 19:00`, `после 16` и другие формулировки. Значение передаётся в карточку строго как написано.
+
+Geo snapshot-поля адреса:
+
+* `address_normalized_snapshot` — нормализованный адрес от DaData, если он вернулся;
+* `address_geo_source` — источник проверки, сейчас `dadata`;
+* `address_beltway_hit` — результат относительно МКАД/КАД, например `IN_MKAD`, `OUT_MKAD`, `UNKNOWN`;
+* `address_beltway_distance_km` — расстояние от МКАД/КАД от DaData для будущей аналитики;
+* `address_geo_qc_geo` — качество геокодирования DaData;
+* `address_geo_qc` — общий код проверки DaData;
+* `address_geo_qc_house` — код проверки дома DaData.
+
+Широта и долгота на MVP не сохраняются.
+
+`address_beltway_distance_km` не выводится в карточке заявки. В карточке показывается только тарифная строка салона `Километраж от МКАД X₽/км`, и только если `address_beltway_hit = OUT_MKAD`.
 
 ### `order_items`
 
@@ -208,6 +223,9 @@ Snapshot-поля нужны, чтобы старая заявка не меня
 * `manager_name_snapshot`;
 * `manager_phone_snapshot`;
 * `manager_role_snapshot`;
+* `address_normalized_snapshot`;
+* `address_beltway_hit`;
+* `address_beltway_distance_km`;
 * `item_name_snapshot`;
 * `unit_price_snapshot`;
 * `price_text_snapshot`;
