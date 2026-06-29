@@ -13,9 +13,9 @@ import { createSalonRequiredItemRepository } from "./db/salonRequiredItemReposit
 import { createSalonRepository } from "./db/salonRepository.js";
 import { createTelegramUserRepository } from "./db/telegramUserRepository.js";
 
-console.info("ZamerFlow application starting.");
-
 const config = loadConfig();
+console.info(`ZamerFlow application starting: env=${config.appEnv}, bot_enabled=${config.botEnabled}.`);
+
 const db = createDatabase(config.databasePath);
 
 runMigrations(db);
@@ -26,14 +26,16 @@ const managerRepository = createSalonManagerRepository(db);
 const salonRequiredItemRepository = createSalonRequiredItemRepository(db);
 const telegramUserRepository = createTelegramUserRepository(db);
 const managerAuthCodeRepository = createManagerAuthCodeRepository(db);
-const bot = createBot(
-  config.botToken,
-  orderRepository,
-  salonRepository,
-  salonRequiredItemRepository,
-  telegramUserRepository,
-  managerAuthCodeRepository
-);
+const bot = config.botEnabled
+  ? createBot(
+      config.botToken,
+      orderRepository,
+      salonRepository,
+      salonRequiredItemRepository,
+      telegramUserRepository,
+      managerAuthCodeRepository
+    )
+  : undefined;
 
 console.info("ZamerFlow admin starting.");
 const adminServer = await startAdminServer({
@@ -45,24 +47,29 @@ const adminServer = await startAdminServer({
   orderRepository
 });
 
-try {
-  console.info("ZamerFlow bot starting in long polling mode.");
-  await launchBotWithRetry(bot);
-} catch (error) {
-  const message = safeErrorMessage(error);
-  console.error(`ZamerFlow bot failed to start after retries: ${message}`);
-  await adminServer.close();
-  db.close();
-  process.exit(1);
+if (bot) {
+  try {
+    console.info("ZamerFlow bot starting in long polling mode.");
+    await launchBotWithRetry(bot);
+  } catch (error) {
+    const message = safeErrorMessage(error);
+    console.error(`ZamerFlow bot failed to start after retries: ${message}`);
+    await adminServer.close();
+    db.close();
+    process.exit(1);
+  }
+
+  console.info("ZamerFlow bot started in long polling mode.");
+} else {
+  console.info("ZamerFlow bot polling disabled by BOT_ENABLED=false.");
 }
 
-console.info("ZamerFlow bot started in long polling mode.");
 console.info(`ZamerFlow admin started at http://localhost:${config.adminPort}/admin`);
 console.info(`ZamerFlow healthcheck available at http://localhost:${config.adminPort}/health`);
 
 async function shutdown(signal: "SIGINT" | "SIGTERM"): Promise<void> {
   console.info(`ZamerFlow application stopping: signal=${signal}.`);
-  bot.stop(signal);
+  bot?.stop(signal);
   await adminServer.close();
   db.close();
   process.exit(0);

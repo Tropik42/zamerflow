@@ -17,6 +17,7 @@ import {
   measureServiceItems
 } from "./measureServiceItems.js";
 import { safeAnswerCbQuery } from "./safeAnswerCbQuery.js";
+import { formatWhoamiProfile } from "./whoamiProfile.js";
 import type { AuthenticatedUser } from "../types/auth.js";
 import type {
   AcceptedOrder,
@@ -377,17 +378,7 @@ async function showWhoami(
     return;
   }
 
-  await ctx.reply(
-    [
-      `telegram_user_id: ${user.telegram_user_id}`,
-      `username: ${user.username ? `@${user.username}` : "-"}`,
-      `роль: ${user.role}`,
-      `роль в салоне: ${user.manager_role ?? "-"}`,
-      `салон: ${user.salon_name ?? user.salon_id}`,
-      `менеджер: ${user.manager_name ?? user.manager_id}`
-    ].join("\n"),
-    mainKeyboardForChat(ctx)
-  );
+  await ctx.reply(formatWhoamiProfile(user), mainKeyboardForChat(ctx));
 }
 
 /**

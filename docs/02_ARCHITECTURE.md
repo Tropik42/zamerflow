@@ -39,6 +39,44 @@ tsx src/index.ts
 npm run typecheck
 ```
 
+## Окружения
+
+ZamerFlow использует два отдельных контура.
+
+Local development:
+
+* отдельный Telegram-бот `@zamerflow_dev_bot`;
+* отдельный dev `BOT_TOKEN`;
+* локальная SQLite-база, например `./data/zamerflow-dev.sqlite`;
+* запуск через `npm run dev`;
+* production `BOT_TOKEN` и production SQLite не используются.
+
+Production:
+
+* production Telegram-бот;
+* production `BOT_TOKEN`;
+* SQLite-файл на VPS, например `/var/lib/zamerflow/zamerflow.sqlite`;
+* запуск через systemd или pm2;
+* админка доступна через nginx reverse proxy и закрыта Basic Auth, если это настроено на VPS.
+
+Один и тот же Telegram bot token нельзя использовать одновременно в local development и production: процессы long polling будут конкурировать за Telegram updates.
+
+В `.env` используется `APP_ENV`:
+
+```env
+APP_ENV=development
+```
+
+Допустимые значения: `development`, `production`.
+
+Для локальной проверки админки без запуска Telegram long polling можно использовать:
+
+```env
+BOT_ENABLED=false
+```
+
+По умолчанию `BOT_ENABLED=true`, чтобы production-запуск не требовал дополнительной настройки.
+
 ## Один процесс на MVP
 
 На MVP бот и админка работают в одном Node.js-процессе.
@@ -123,12 +161,13 @@ docs/
 Делает:
 
 * загрузку `.env`;
+* чтение `APP_ENV` и `BOT_ENABLED`;
 * создание SQLite-подключения;
 * запуск миграций;
 * создание repositories;
-* создание бота;
+* создание бота, если `BOT_ENABLED=true`;
 * запуск Fastify-админки;
-* запуск Telegraf long polling;
+* запуск Telegraf long polling, если `BOT_ENABLED=true`;
 * graceful shutdown для SIGINT/SIGTERM.
 
 При временной сетевой ошибке Telegram API запуск бота пробуется повторно несколько раз. Если все попытки исчерпаны, процесс завершает старт с ошибкой.

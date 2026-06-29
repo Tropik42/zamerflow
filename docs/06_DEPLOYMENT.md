@@ -2,17 +2,15 @@
 
 ## Текущий статус
 
-Production-деплой ещё предстоит подготовить.
+Production-деплой выполнен на VPS.
 
-Сейчас проект запускается локально через:
+Локально проект запускается через:
 
 ```bash
 npm run dev
 ```
 
-Бот работает через long polling.
-
-Админка запускается в том же процессе.
+Production Telegram-бот и Fastify-админка работают на сервере. Бот работает через long polling. Админка запускается в том же Node.js-процессе и должна быть доступна через nginx reverse proxy с Basic Auth или другой внешней защитой.
 
 ## Цель деплоя
 
@@ -46,20 +44,29 @@ VPS
 
 ## Переменные окружения
 
-Минимально нужны:
+Local development `.env`:
 
 ```env
-BOT_TOKEN=
-DATABASE_PATH=./data/zamerflow.sqlite
-ADMIN_PORT=3000
+APP_ENV=development
+BOT_ENABLED=true
+BOT_TOKEN=dev_bot_token_for_zamerflow_dev_bot
+DATABASE_PATH=./data/zamerflow-dev.sqlite
+ADMIN_PORT=3001
 ```
 
-На production лучше использовать абсолютные пути:
+Production `.env` на VPS:
 
 ```env
+APP_ENV=production
+BOT_ENABLED=true
+BOT_TOKEN=production_bot_token_here
 DATABASE_PATH=/var/lib/zamerflow/zamerflow.sqlite
 ADMIN_PORT=3000
 ```
+
+Не вставлять реальные токены в документацию, shell history, issue, chat или git.
+
+Локальная разработка должна использовать `@zamerflow_dev_bot`. Production `BOT_TOKEN` не используется локально, пока production-сервис работает на VPS.
 
 ## Каталоги на сервере
 
@@ -96,6 +103,12 @@ WantedBy=multi-user.target
 ```
 
 Для production позже лучше добавить build/start script, но на MVP можно начать с `tsx`, если это упрощает запуск.
+
+Если нужно запустить только админку без Telegram long polling, например локально для проверки UI, можно использовать:
+
+```env
+BOT_ENABLED=false
+```
 
 ## Nginx
 
