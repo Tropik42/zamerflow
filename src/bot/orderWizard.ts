@@ -684,12 +684,7 @@ async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): P
 async function askMeasureTime(ctx: Context): Promise<void> {
   await replyQuestion(
     ctx,
-    [
-      "7. Желаемое время прибытия замерщика? Можно пропустить.",
-      "Если менеджер указал время, интервал или формулировку — передай строго как написано:",
-      "\"утром\", \"первая половина дня\", \"с 13 до 15\", \"в 19:00\".",
-      "Если времени нет — нажми «Пропустить»."
-    ].join("\n"),
+    "7. Желаемое время прибытия замерщика? Можно пропустить.",
     true
   );
 }
