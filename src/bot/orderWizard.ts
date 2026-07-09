@@ -4,6 +4,7 @@ import type { OrderRepository } from "../db/orderRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
+import { logError, logInfo } from "../logger.js";
 import type { AddressGeoService } from "../services/addressGeoService.js";
 import { safeErrorMessage } from "./errorLogging.js";
 import { formatOrderCard } from "./formatOrderCard.js";
@@ -148,6 +149,14 @@ export function registerOrderWizard(
     session.draft.serviceItems.push(...getRequiredServiceItems(salon.salon_id, salonRequiredItemRepository));
     session.step = "managerContact";
 
+    logInfo("order_draft_salon_selected", {
+      telegram_user_id: getTelegramUserId(ctx),
+      chat_id: ctx.chat?.id,
+      salon_id: salon.salon_id,
+      salon_name: salon.salon_name,
+      step: session.step
+    });
+
     await replyQuestion(ctx, "2. Контакт менеджера?");
   });
 
@@ -239,11 +248,29 @@ export function registerOrderWizard(
     };
 
     try {
-      orderRepository.create(order);
+      const orderId = orderRepository.create(order);
+      logInfo("order_created", {
+        order_id: orderId,
+        telegram_user_id: String(userId),
+        chat_id: ctx.chat?.id,
+        salon_id: session.draft.salonId,
+        salon_name: session.draft.salonNameSnapshot,
+        manager_id: session.draft.managerId,
+        manager_name: session.draft.managerNameSnapshot,
+        measure_date: session.draft.measureDate,
+        measure_time: session.draft.measureTime,
+        address_beltway_hit: session.draft.addressBeltwayHit,
+        address_beltway_distance_km: session.draft.addressBeltwayDistanceKm,
+        address_geo_source: session.draft.addressGeoSource
+      });
     } catch (error) {
-      console.error(
-        `Order save failed: telegram_user_id=${userId}, salon_id=${session.draft.salonId ?? "-"}, manager_id=${session.draft.managerId ?? "-"}, message=${safeErrorMessage(error)}`
-      );
+      logError("order_save_failed", {
+        telegram_user_id: String(userId),
+        chat_id: ctx.chat?.id,
+        salon_id: session.draft.salonId,
+        manager_id: session.draft.managerId,
+        message: safeErrorMessage(error)
+      });
       throw error;
     }
 
@@ -449,6 +476,16 @@ async function startNewOrder(
       }
     });
 
+    logInfo("order_draft_started", {
+      telegram_user_id: telegramUserId,
+      chat_id: ctx.chat?.id,
+      salon_id: salon.salon_id,
+      salon_name: salon.salon_name,
+      manager_id: user.manager_id,
+      manager_name: user.manager_name,
+      initial_step: "clientContact"
+    });
+
     await replyQuestion(ctx, "Контакт клиента или представителя.");
     return;
   }
@@ -458,6 +495,12 @@ async function startNewOrder(
     draft: {
       serviceItems: []
     }
+  });
+
+  logInfo("order_draft_started", {
+    telegram_user_id: telegramUserId,
+    chat_id: ctx.chat?.id,
+    initial_step: "selectSalon"
   });
 
   const salons = salonRepository.getActiveSalons();
@@ -1059,6 +1102,19 @@ async function skipOptionalStep(
  */
 async function cancelOrder(ctx: Context): Promise<void> {
   const sessionKey = getSessionKey(ctx);
+  const session = sessionKey ? sessions.get(sessionKey) : undefined;
+
+  logInfo("order_draft_cancelled", {
+    telegram_user_id: getTelegramUserId(ctx),
+    chat_id: ctx.chat?.id,
+    step: session?.step,
+    salon_id: session?.draft.salonId,
+    salon_name: session?.draft.salonNameSnapshot,
+    manager_id: session?.draft.managerId,
+    manager_name: session?.draft.managerNameSnapshot,
+    has_session: Boolean(session)
+  });
+
   if (sessionKey) {
     sessions.delete(sessionKey);
   }

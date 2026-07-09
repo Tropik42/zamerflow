@@ -42,6 +42,61 @@
 
 На MVP достаточно писать в stdout/stderr, чтобы systemd или pm2 собирали логи.
 
+## MVP structured logs
+
+Для MVP приложение пишет структурные события одной JSON-строкой в stdout/stderr.
+
+Формат:
+
+```json
+{"ts":"2026-06-29T12:00:00.000Z","level":"info","event":"order_created","order_id":123}
+```
+
+`info` и `warn` пишутся в stdout/stderr через `console.info` и `console.warn`, `error` — через `console.error`.
+Этого достаточно для systemd, pm2 и docker logs без отдельного log storage.
+
+Смотреть логи systemd:
+
+```bash
+sudo journalctl -u zamerflow -f
+sudo journalctl -u zamerflow --since "YYYY-MM-DD HH:MM" --no-pager
+```
+
+Фильтровать события:
+
+```bash
+sudo journalctl -u zamerflow --no-pager | grep '"event":"dadata_address_request_succeeded"'
+sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
+```
+
+События DaData:
+
+* `dadata_address_request_started`: `address_length`, `timeout_ms`;
+* `dadata_address_request_succeeded`: `duration_ms`, `http_status`, `field_count`, `normalized_address`, `beltway_hit`, `beltway_distance_km`, `qc_geo`, `qc_house`;
+* `dadata_address_request_failed`: `duration_ms`, `http_status`, `address_length`, `message`.
+
+События черновика и заявки:
+
+* `order_draft_started`: `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `initial_step`;
+* `order_draft_salon_selected`: `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `step`;
+* `order_draft_cancelled`: `telegram_user_id`, `chat_id`, `step`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `has_session`;
+* `order_created`: `order_id`, `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `measure_date`, `measure_time`, `address_beltway_hit`, `address_beltway_distance_km`, `address_geo_source`;
+* `order_save_failed`: `telegram_user_id`, `chat_id`, `salon_id`, `manager_id`, `message`.
+
+В логах не должно быть:
+
+* Telegram bot token;
+* DaData API key и secret;
+* auth codes;
+* телефонов клиентов;
+* телефонов менеджеров;
+* полного адреса клиента;
+* полного текста карточки заявки;
+* полного комментария;
+* содержимого `.env`.
+
+Для DaData request started логируется только длина исходного адреса. Для DaData success можно логировать нормализованный адрес из ответа DaData, но только с ограничением длины. Для DaData failed логируются только длина адреса, длительность, HTTP-статус и безопасное сообщение ошибки.
+
 ## Что не логировать
 
 Не логировать без необходимости:
