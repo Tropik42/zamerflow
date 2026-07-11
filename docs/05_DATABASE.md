@@ -144,7 +144,8 @@ is_payment_by_fixed
 * доплаты;
 * комментарий;
 * готовый текст карточки;
-* Telegram user id.
+* Telegram user id;
+* статус и метаданные dispatch-отправки.
 * snapshot-поля результата проверки адреса через DaData.
 
 `final_price` сейчас зарезервирован под будущее, не используется в бизнес-логике и должен сохраняться `NULL`.
@@ -168,6 +169,19 @@ Geo snapshot-поля адреса:
 Широта и долгота на MVP не сохраняются.
 
 `address_beltway_distance_km` не выводится в карточке заявки. В карточке показывается только тарифная строка салона `Километраж от МКАД X₽/км`, и только если `address_beltway_hit = OUT_MKAD`.
+
+Dispatch notification поля:
+
+* `dispatch_notification_status` — отдельный статус отправки карточки в dispatch-чат: `not_sent`, `sent`, `failed`;
+* `dispatch_notification_chat_id` — Telegram chat id dispatch-чата как `TEXT`;
+* `dispatch_notification_header_message_id` — id служебного header-сообщения, если оно было отправлено;
+* `dispatch_notification_card_message_id` — id сообщения с чистой карточкой;
+* `dispatch_notification_sent_at` — время успешной отправки;
+* `dispatch_notification_error` — короткий безопасный error code или сообщение без персональных данных;
+* `dispatch_notification_attempts` — количество попыток dispatch-отправки;
+* `dispatch_notification_last_attempt_at` — время последней попытки.
+
+`orders.status` остаётся бизнес-статусом заявки, например `accepted`. Dispatch-статус не должен смешиваться с бизнес-статусом заявки.
 
 ### `order_items`
 

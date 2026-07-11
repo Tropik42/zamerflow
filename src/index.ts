@@ -49,7 +49,8 @@ const bot = config.botEnabled
       salonRequiredItemRepository,
       telegramUserRepository,
       managerAuthCodeRepository,
-      addressGeoService
+      addressGeoService,
+      config.dispatchChatId
     )
   : undefined;
 

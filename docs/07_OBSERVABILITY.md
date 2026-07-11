@@ -22,7 +22,8 @@
 * адрес админки;
 * `/health`;
 * ошибки обработки Telegram update;
-* ошибки сохранения заявки.
+* ошибки сохранения заявки;
+* результат dispatch-отправки подтверждённой карточки.
 
 Структурные логи, error alerts и backup-monitoring ещё предстоит добавить.
 
@@ -82,6 +83,13 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * `order_draft_cancelled`: `telegram_user_id`, `chat_id`, `step`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `has_session`;
 * `order_created`: `order_id`, `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `measure_date`, `measure_time`, `address_beltway_hit`, `address_beltway_distance_km`, `address_geo_source`;
 * `order_save_failed`: `telegram_user_id`, `chat_id`, `salon_id`, `manager_id`, `message`.
+
+События dispatch-отправки:
+
+* `dispatch_notification_sent`: `order_id`, `chat_id`, `header_message_id`, `card_message_id`, `attempt`;
+* `dispatch_notification_failed`: `order_id`, `chat_id`, `error_code`, `attempt`;
+* `dispatch_notification_retry`: `order_id`, `chat_id`, `attempt`;
+* `dispatch_notification_skipped`: `order_id`, `error_code`.
 
 В логах не должно быть:
 

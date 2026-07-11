@@ -5,6 +5,7 @@ export interface AppConfig {
   botToken: string;
   botEnabled: boolean;
   databasePath: string;
+  dispatchChatId?: string;
   adminPort: number;
   dadata: DadataConfig;
 }
@@ -26,6 +27,7 @@ export function loadConfig(): AppConfig {
   const botEnabled = parseBooleanEnv(process.env.BOT_ENABLED ?? "true", "BOT_ENABLED");
   const botToken = process.env.BOT_TOKEN;
   const databasePath = process.env.DATABASE_PATH ?? "./data/zamerflow-dev.sqlite";
+  const dispatchChatId = normalizeOptionalEnv(process.env.DISPATCH_CHAT_ID);
   const adminPort = Number(process.env.ADMIN_PORT ?? "3000");
   const dadataEnabled = parseBooleanEnv(process.env.DADATA_ENABLED ?? "false", "DADATA_ENABLED");
   const dadataApiKey = process.env.DADATA_API_KEY ?? "";
@@ -53,6 +55,7 @@ export function loadConfig(): AppConfig {
     botToken: botToken ?? "",
     botEnabled,
     databasePath,
+    dispatchChatId,
     adminPort,
     dadata: {
       enabled: dadataEnabled,
@@ -61,6 +64,11 @@ export function loadConfig(): AppConfig {
       timeoutMs: dadataTimeoutMs
     }
   };
+}
+
+function normalizeOptionalEnv(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function parseAppEnv(value: string): AppEnv {

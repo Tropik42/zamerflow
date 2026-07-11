@@ -81,6 +81,8 @@ export type PaymentBy = "клиентом" | "салоном" | "депозит"
 
 export type BeltwayHit = "IN_MKAD" | "OUT_MKAD" | "IN_KAD" | "OUT_KAD" | "UNKNOWN";
 
+export type DispatchNotificationStatus = "not_sent" | "sent" | "failed";
+
 export interface AddressGeoSnapshot {
   source: "dadata";
   normalizedAddress?: string;
@@ -196,6 +198,14 @@ export interface OrderRecord {
   has_plan?: string;
   formatted_card_text: string;
   telegram_user_id?: string;
+  dispatch_notification_status: DispatchNotificationStatus;
+  dispatch_notification_chat_id?: string;
+  dispatch_notification_header_message_id?: number;
+  dispatch_notification_card_message_id?: number;
+  dispatch_notification_sent_at?: string;
+  dispatch_notification_error?: string;
+  dispatch_notification_attempts: number;
+  dispatch_notification_last_attempt_at?: string;
 }
 
 export type WizardStep =
@@ -216,4 +226,6 @@ export type WizardStep =
 export interface WizardSession {
   step: WizardStep;
   draft: OrderDraft;
+  isSubmitting?: boolean;
+  acceptedOrderId?: number;
 }

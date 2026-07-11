@@ -1,12 +1,11 @@
 import { Markup, type Context, type Telegraf } from "telegraf";
 import type { ManagerAuthCodeRepository } from "../db/managerAuthCodeRepository.js";
-import type { OrderRepository } from "../db/orderRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
-import { logError, logInfo } from "../logger.js";
+import { logInfo } from "../logger.js";
 import type { AddressGeoService } from "../services/addressGeoService.js";
-import { safeErrorMessage } from "./errorLogging.js";
+import type { OrderSubmissionService } from "../services/orderSubmissionService.js";
 import { formatOrderCard } from "./formatOrderCard.js";
 import {
   getMeasurePaymentOptionByKey,
@@ -49,13 +48,12 @@ const pendingAuthTelegramUserIds = new Set<string>();
 /**
  * Регистрирует команды, текстовые обработчики и inline-действия сценария заявки.
  * @param {Telegraf<Context>} bot Экземпляр Telegram-бота.
- * @param {OrderRepository} orderRepository Репозиторий для сохранения заявок.
  * @param {SalonRepository} salonRepository Репозиторий для чтения справочника салонов.
  * @returns {void}
  */
 export function registerOrderWizard(
   bot: Telegraf<Context>,
-  orderRepository: OrderRepository,
+  orderSubmissionService: OrderSubmissionService,
   salonRepository: SalonRepository,
   salonRequiredItemRepository: SalonRequiredItemRepository,
   telegramUserRepository: TelegramUserRepository,
@@ -240,11 +238,23 @@ export function registerOrderWizard(
       return;
     }
 
+    if (session.acceptedOrderId) {
+      await ctx.reply(`Заявка уже принята. Номер заявки: #${session.acceptedOrderId}`);
+      return;
+    }
+
+    if (session.isSubmitting) {
+      await ctx.reply("Заявка уже обрабатывается.");
+      return;
+    }
+
     if (!isCompleteDraft(session.draft)) {
       await ctx.reply("Черновик заполнен не полностью. Начните заявку заново.", mainKeyboardForChat(ctx));
       sessions.delete(sessionKey);
       return;
     }
+
+    session.isSubmitting = true;
 
     const formattedCardText = formatOrderCard(session.draft);
     const order: AcceptedOrder = {
@@ -256,42 +266,44 @@ export function registerOrderWizard(
     };
 
     try {
-      const orderId = orderRepository.create(order);
-      logInfo("order_created", {
-        order_id: orderId,
-        telegram_user_id: String(userId),
-        chat_id: ctx.chat?.id,
-        salon_id: session.draft.salonId,
-        salon_name: session.draft.salonNameSnapshot,
-        manager_id: session.draft.managerId,
-        manager_name: session.draft.managerNameSnapshot,
-        measure_date: session.draft.measureDate,
-        measure_time: session.draft.measureTime,
-        address_beltway_hit: session.draft.addressBeltwayHit,
-        address_beltway_distance_km: session.draft.addressBeltwayDistanceKm,
-        address_geo_source: session.draft.addressGeoSource
+      const result = await orderSubmissionService.submitAcceptedOrder({
+        order,
+        sourceChatId: ctx.chat?.id
       });
-    } catch (error) {
-      logError("order_save_failed", {
-        telegram_user_id: String(userId),
-        chat_id: ctx.chat?.id,
-        salon_id: session.draft.salonId,
-        manager_id: session.draft.managerId,
-        message: safeErrorMessage(error)
-      });
-      throw error;
+
+      session.acceptedOrderId = result.orderId;
+      session.isSubmitting = false;
+
+      if (result.dispatchNotificationStatus === "sent") {
+        await ctx.reply(
+          `✅ Заявка #${result.orderId} принята и отправлена в рабочий чат.`,
+          mainKeyboardForChat(ctx)
+        );
+        return;
+      }
+
+      await ctx.reply(
+        `⚠️ Заявка #${result.orderId} сохранена, но не удалось отправить карточку в рабочий чат.\nАдминистратор сможет проверить её в админке.`,
+        mainKeyboardForChat(ctx)
+      );
+    } catch {
+      session.isSubmitting = false;
+      await ctx.reply(
+        "Не удалось сохранить заявку. Попробуйте принять её ещё раз или обратитесь к администратору.",
+        mainKeyboardForChat(ctx)
+      );
     }
-
-    sessions.delete(sessionKey);
-
-    await ctx.reply(
-      "Заявка сохранена. Карточку можно скопировать и отправить куда нужно.",
-      mainKeyboardForChat(ctx)
-    );
   });
 
   bot.action("restart_order", async (ctx) => {
     await safeAnswerCbQuery(ctx);
+
+    const session = getSession(ctx);
+    if (session?.acceptedOrderId) {
+      await ctx.reply(`Заявка уже принята. Номер заявки: #${session.acceptedOrderId}`);
+      return;
+    }
+
     await startNewOrder(ctx, salonRepository, salonRequiredItemRepository, telegramUserRepository);
   });
 
@@ -352,7 +364,7 @@ async function handleStart(
 
   pendingAuthTelegramUserIds.add(telegramUserId);
   await ctx.reply(
-    "Вы пока не привязаны к менеджеру. Введите код доступа, который вам выдал Олег.",
+    "Вы пока не привязаны к менеджеру. Введите код доступа, который вам выдал администратор.",
     Markup.removeKeyboard()
   );
 }
@@ -1143,6 +1155,11 @@ async function skipOptionalStep(
 async function cancelOrder(ctx: Context): Promise<void> {
   const sessionKey = getSessionKey(ctx);
   const session = sessionKey ? sessions.get(sessionKey) : undefined;
+
+  if (session?.acceptedOrderId) {
+    await ctx.reply(`Заявка уже принята. Номер заявки: #${session.acceptedOrderId}`);
+    return;
+  }
 
   logInfo("order_draft_cancelled", {
     telegram_user_id: getTelegramUserId(ctx),

@@ -128,6 +128,19 @@ Telegram bot / Admin UI
 → SQLite
 ```
 
+Принятие заявки и dispatch-отправка:
+
+```text
+Telegram bot
+→ OrderSubmissionService
+→ OrderRepository
+→ SQLite
+
+OrderSubmissionService
+→ DispatchNotificationService
+→ Telegram group chat from DISPATCH_CHAT_ID
+```
+
 Внешнее обогащение адреса:
 
 ```text
@@ -228,6 +241,7 @@ SQL-миграции.
 Но стратегически бизнес-логика должна уходить из handlers/routes в services:
 
 * создание заявки;
+* dispatch-отправка принятой карточки;
 * применение правил салона;
 * snapshot-логика;
 * проверка прав пользователя;

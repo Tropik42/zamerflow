@@ -3,10 +3,27 @@ import type { AcceptedOrder, OrderItemRecord, OrderRecord } from "../types/order
 
 export interface OrderRepository {
   create(order: AcceptedOrder): number;
+  markDispatchNotificationSent(params: MarkDispatchNotificationSentParams): void;
+  markDispatchNotificationFailed(params: MarkDispatchNotificationFailedParams): void;
   countOrders(): number;
   getOrdersForAdmin(): OrderRecord[];
   getOrderById(orderId: number): OrderRecord | undefined;
   getOrderItems(orderId: number): OrderItemRecord[];
+}
+
+export interface MarkDispatchNotificationSentParams {
+  orderId: number;
+  chatId: string;
+  headerMessageId?: number;
+  cardMessageId: number;
+  sentAt: string;
+}
+
+export interface MarkDispatchNotificationFailedParams {
+  orderId: number;
+  error: string;
+  attemptedAt: string;
+  chatId?: string;
 }
 
 /**
@@ -171,7 +188,15 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       comment,
       has_plan,
       formatted_card_text,
-      telegram_user_id
+      telegram_user_id,
+      dispatch_notification_status,
+      dispatch_notification_chat_id,
+      dispatch_notification_header_message_id,
+      dispatch_notification_card_message_id,
+      dispatch_notification_sent_at,
+      dispatch_notification_error,
+      dispatch_notification_attempts,
+      dispatch_notification_last_attempt_at
     FROM orders
     ORDER BY order_id DESC
   `);
@@ -212,10 +237,45 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       comment,
       has_plan,
       formatted_card_text,
-      telegram_user_id
+      telegram_user_id,
+      dispatch_notification_status,
+      dispatch_notification_chat_id,
+      dispatch_notification_header_message_id,
+      dispatch_notification_card_message_id,
+      dispatch_notification_sent_at,
+      dispatch_notification_error,
+      dispatch_notification_attempts,
+      dispatch_notification_last_attempt_at
     FROM orders
     WHERE order_id = ?
     LIMIT 1
+  `);
+
+  const markDispatchSent = db.prepare(`
+    UPDATE orders
+    SET
+      modify_datetime = @sentAt,
+      dispatch_notification_status = 'sent',
+      dispatch_notification_chat_id = @chatId,
+      dispatch_notification_header_message_id = @headerMessageId,
+      dispatch_notification_card_message_id = @cardMessageId,
+      dispatch_notification_sent_at = @sentAt,
+      dispatch_notification_error = NULL,
+      dispatch_notification_attempts = dispatch_notification_attempts + 1,
+      dispatch_notification_last_attempt_at = @sentAt
+    WHERE order_id = @orderId
+  `);
+
+  const markDispatchFailed = db.prepare(`
+    UPDATE orders
+    SET
+      modify_datetime = @attemptedAt,
+      dispatch_notification_status = 'failed',
+      dispatch_notification_chat_id = COALESCE(@chatId, dispatch_notification_chat_id),
+      dispatch_notification_error = @error,
+      dispatch_notification_attempts = dispatch_notification_attempts + 1,
+      dispatch_notification_last_attempt_at = @attemptedAt
+    WHERE order_id = @orderId
   `);
 
   const selectOrderItems = db.prepare(`
@@ -313,6 +373,23 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     create(order) {
       return createOrderWithItems(order);
     },
+    markDispatchNotificationSent(params) {
+      markDispatchSent.run({
+        orderId: params.orderId,
+        chatId: params.chatId,
+        headerMessageId: params.headerMessageId ?? null,
+        cardMessageId: params.cardMessageId,
+        sentAt: params.sentAt
+      });
+    },
+    markDispatchNotificationFailed(params) {
+      markDispatchFailed.run({
+        orderId: params.orderId,
+        error: params.error,
+        attemptedAt: params.attemptedAt,
+        chatId: params.chatId ?? null
+      });
+    },
     countOrders() {
       const row = countOrders.get() as { count: number };
       return Number(row.count);
@@ -368,7 +445,15 @@ function mapOrderRow(row: unknown): OrderRecord {
     comment: optionalString(order.comment),
     has_plan: optionalString(order.has_plan),
     formatted_card_text: String(order.formatted_card_text),
-    telegram_user_id: optionalString(order.telegram_user_id)
+    telegram_user_id: optionalString(order.telegram_user_id),
+    dispatch_notification_status: mapDispatchNotificationStatus(order.dispatch_notification_status),
+    dispatch_notification_chat_id: optionalString(order.dispatch_notification_chat_id),
+    dispatch_notification_header_message_id: optionalNumber(order.dispatch_notification_header_message_id),
+    dispatch_notification_card_message_id: optionalNumber(order.dispatch_notification_card_message_id),
+    dispatch_notification_sent_at: optionalString(order.dispatch_notification_sent_at),
+    dispatch_notification_error: optionalString(order.dispatch_notification_error),
+    dispatch_notification_attempts: optionalNumber(order.dispatch_notification_attempts) ?? 0,
+    dispatch_notification_last_attempt_at: optionalString(order.dispatch_notification_last_attempt_at)
   };
 }
 
@@ -399,4 +484,12 @@ function optionalString(value: unknown): string | undefined {
 
 function optionalNumber(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
+}
+
+function mapDispatchNotificationStatus(value: unknown): OrderRecord["dispatch_notification_status"] {
+  if (value === "sent" || value === "failed" || value === "not_sent") {
+    return value;
+  }
+
+  return "not_sent";
 }

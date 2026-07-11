@@ -52,6 +52,7 @@ BOT_ENABLED=true
 BOT_TOKEN=dev_bot_token_for_zamerflow_dev_bot
 DATABASE_PATH=./data/zamerflow-dev.sqlite
 ADMIN_PORT=3001
+DISPATCH_CHAT_ID=
 DADATA_ENABLED=false
 ```
 
@@ -63,6 +64,7 @@ BOT_ENABLED=true
 BOT_TOKEN=production_bot_token_here
 DATABASE_PATH=/var/lib/zamerflow/zamerflow.sqlite
 ADMIN_PORT=3000
+DISPATCH_CHAT_ID=
 DADATA_ENABLED=true
 DADATA_API_KEY=
 DADATA_SECRET_KEY=
@@ -70,6 +72,8 @@ DADATA_TIMEOUT_MS=3000
 ```
 
 Не вставлять реальные токены и DaData-ключи в документацию, shell history, issue, chat или git.
+
+`DISPATCH_CHAT_ID` — chat id рабочего группового Telegram dispatch-чата, куда бот отправляет подтверждённые карточки заявок. Значение берётся командой `/chatid` в рабочем групповом Telegram-чате, куда добавлен бот. Для группы или супергруппы значение обычно отрицательное. Если переменная не задана или указывает на личный чат, приложение стартует, заявки сохраняются, а dispatch-отправка помечается как failed.
 
 Локальная разработка должна использовать `@zamerflow_dev_bot`. Production `BOT_TOKEN` не используется локально, пока production-сервис работает на VPS.
 
