@@ -13,6 +13,7 @@ export interface SendOrderCardParams {
   address?: string;
   addressNormalizedSnapshot?: string;
   addressBeltwayHit?: string;
+  addressBeltwayDistanceKm?: number;
   formattedCardText: string;
 }
 
@@ -72,7 +73,8 @@ function formatAddressBlock(params: SendOrderCardParams): string[] {
     return [
       `Адрес, введённый менеджером: "${valueOrDash(params.address)}"`,
       `Адрес определён как: "${normalizedAddress}"`,
-      `Расположение: ${locationText}`
+      `Расположение: ${locationText}`,
+      ...formatBeltwayDistance(params)
     ];
   }
 
@@ -81,6 +83,19 @@ function formatAddressBlock(params: SendOrderCardParams): string[] {
     "Адрес автоматически определить не удалось.",
     "Расположение: Не определено"
   ];
+}
+
+function formatBeltwayDistance(params: SendOrderCardParams): string[] {
+  if (params.addressBeltwayHit !== "OUT_MKAD") {
+    return [];
+  }
+
+  const distance = params.addressBeltwayDistanceKm;
+  if (typeof distance !== "number" || !Number.isFinite(distance) || distance <= 0) {
+    return [];
+  }
+
+  return [`Примерное расстояние от МКАД: ${Math.ceil(distance)} км`];
 }
 
 function formatBeltwayHit(value: string | undefined): string {

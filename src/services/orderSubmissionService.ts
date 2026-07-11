@@ -125,6 +125,7 @@ export function createOrderSubmissionService(
           address: order.address,
           addressNormalizedSnapshot: order.addressNormalizedSnapshot,
           addressBeltwayHit: order.addressBeltwayHit,
+          addressBeltwayDistanceKm: order.addressBeltwayDistanceKm,
           formattedCardText: order.formattedCardText
         });
         const sentAt = new Date().toISOString();
