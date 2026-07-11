@@ -73,7 +73,7 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 События DaData:
 
 * `dadata_address_request_started`: `address_length`, `timeout_ms`;
-* `dadata_address_request_succeeded`: `duration_ms`, `http_status`, `field_count`, `normalized_address`, `beltway_hit`, `beltway_distance_km`, `qc_geo`, `qc_house`;
+* `dadata_address_request_succeeded`: `duration_ms`, `http_status`, `field_count`, `beltway_hit`, `beltway_distance_km`, `qc_geo`, `qc_house`;
 * `dadata_address_request_failed`: `duration_ms`, `http_status`, `address_length`, `message`.
 
 События черновика и заявки:
@@ -103,7 +103,7 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * полного комментария;
 * содержимого `.env`.
 
-Для DaData request started логируется только длина исходного адреса. Для DaData success можно логировать нормализованный адрес из ответа DaData, но только с ограничением длины. Для DaData failed логируются только длина адреса, длительность, HTTP-статус и безопасное сообщение ошибки.
+Для DaData request started логируется только длина исходного адреса. Для DaData success не логировать исходный или нормализованный адрес. Для DaData failed логируются только длина адреса, длительность, HTTP-статус и безопасное сообщение ошибки.
 
 ## Что не логировать
 

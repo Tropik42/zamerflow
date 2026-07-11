@@ -122,6 +122,9 @@ export function createOrderSubmissionService(
           salonName: order.salonNameSnapshot,
           managerName: order.managerNameSnapshot,
           measureDate: order.measureDate,
+          address: order.address,
+          addressNormalizedSnapshot: order.addressNormalizedSnapshot,
+          addressBeltwayHit: order.addressBeltwayHit,
           formattedCardText: order.formattedCardText
         });
         const sentAt = new Date().toISOString();

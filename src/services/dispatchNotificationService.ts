@@ -10,6 +10,9 @@ export interface SendOrderCardParams {
   salonName?: string;
   managerName?: string;
   measureDate?: string;
+  address?: string;
+  addressNormalizedSnapshot?: string;
+  addressBeltwayHit?: string;
   formattedCardText: string;
 }
 
@@ -44,15 +47,54 @@ export function createDispatchNotificationService(
 
 function formatDispatchHeader(params: SendOrderCardParams): string {
   return [
-    `🆕 Новая заявка #${params.orderId}`,
+    "О Повелитель, поступила новая заявка!",
+    "",
+    `🆕 Заявка #${params.orderId}`,
     "",
     `Салон: ${valueOrDash(params.salonName)}`,
     `Менеджер: ${valueOrDash(params.managerName)}`,
     `Дата замера: ${valueOrDash(params.measureDate)}`,
-    "Статус: принята менеджером"
+    "Статус: принята менеджером",
+    "",
+    ...formatAddressBlock(params)
   ].join("\n");
 }
 
 function valueOrDash(value: string | undefined): string {
   return value?.trim() ? value.trim() : "-";
+}
+
+function formatAddressBlock(params: SendOrderCardParams): string[] {
+  const locationText = formatBeltwayHit(params.addressBeltwayHit);
+  const normalizedAddress = params.addressNormalizedSnapshot?.trim();
+
+  if (normalizedAddress && locationText !== "Не определено") {
+    return [
+      `Адрес, введённый менеджером: "${valueOrDash(params.address)}"`,
+      `Адрес определён как: "${normalizedAddress}"`,
+      `Расположение: ${locationText}`
+    ];
+  }
+
+  return [
+    `Адрес, введённый менеджером: "${valueOrDash(params.address)}"`,
+    "Адрес автоматически определить не удалось.",
+    "Расположение: Не определено"
+  ];
+}
+
+function formatBeltwayHit(value: string | undefined): string {
+  switch (value) {
+    case "IN_MKAD":
+      return "Внутри МКАД";
+    case "OUT_MKAD":
+      return "За МКАД";
+    case "IN_KAD":
+      return "Внутри КАД";
+    case "OUT_KAD":
+      return "За КАД";
+    case "UNKNOWN":
+    default:
+      return "Не определено";
+  }
 }

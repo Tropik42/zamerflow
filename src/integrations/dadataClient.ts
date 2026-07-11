@@ -77,7 +77,6 @@ export function createDadataClient(params: {
           duration_ms: Date.now() - startedAt,
           http_status: httpStatus,
           field_count: Object.keys(first).length,
-          normalized_address: truncateForLog(result.result, 200),
           beltway_hit: result.beltway_hit,
           beltway_distance_km: result.beltway_distance,
           qc_geo: result.qc_geo,
