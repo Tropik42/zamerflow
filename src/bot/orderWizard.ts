@@ -81,6 +81,14 @@ export function registerOrderWizard(
     await showWhoami(ctx, telegramUserRepository);
   });
 
+  bot.command("chatid", async (ctx) => {
+    await showChatId(ctx);
+  });
+
+  bot.command("chatId", async (ctx) => {
+    await showChatId(ctx);
+  });
+
   bot.command("cancel", async (ctx) => {
     await cancelOrder(ctx);
   });
@@ -413,6 +421,38 @@ async function showWhoami(
   }
 
   await ctx.reply(formatWhoamiProfile(user), mainKeyboardForChat(ctx));
+}
+
+async function showChatId(ctx: Context): Promise<void> {
+  const chat = ctx.chat;
+
+  if (!chat) {
+    await ctx.reply("Не удалось определить чат.");
+    return;
+  }
+
+  const lines = [
+    "Приветствую, господин! Вот данные чата:",
+    "",
+    `DISPATCH_CHAT_ID=${chat.id}`,
+    `chat_type=${chat.type}`
+  ];
+
+  if ("title" in chat && typeof chat.title === "string") {
+    lines.push(`chat_title=${chat.title}`);
+  }
+
+  lines.push("");
+
+  if (chat.type === "private") {
+    lines.push(
+      "Это личный чат. Для dispatch-flow нужен chat_id рабочего группового чата, куда добавлен бот."
+    );
+  } else if (chat.type !== "group" && chat.type !== "supergroup") {
+    lines.push("Для dispatch-flow обычно нужен chat_id группы или супергруппы.");
+  }
+
+  await ctx.reply(lines.join("\n"));
 }
 
 /**
