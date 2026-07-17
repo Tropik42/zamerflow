@@ -23,6 +23,11 @@ export interface ServiceItem {
   sortOrder?: number;
 }
 
+export interface DraftPhoto {
+  fileId: string;
+  fileUniqueId?: string;
+}
+
 export interface Salon {
   salon_id: number;
   create_datetime: string;
@@ -159,6 +164,7 @@ export interface AcceptedOrder {
   extraCharges?: string;
   comment?: string;
   formattedCardText: string;
+  hasPhotos: boolean;
   telegramUserId?: string;
 }
 
@@ -196,6 +202,7 @@ export interface OrderRecord {
   extra_charges?: string;
   comment?: string;
   has_plan?: string;
+  has_photos: number;
   formatted_card_text: string;
   telegram_user_id?: string;
   dispatch_notification_status: DispatchNotificationStatus;
@@ -221,11 +228,13 @@ export type WizardStep =
   | "paymentBy"
   | "extraCharges"
   | "comment"
+  | "photos"
   | "preview";
 
 export interface WizardSession {
   step: WizardStep;
   draft: OrderDraft;
+  photos: DraftPhoto[];
   isSubmitting?: boolean;
   acceptedOrderId?: number;
 }

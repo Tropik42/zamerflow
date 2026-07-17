@@ -24,6 +24,8 @@ export interface MarkDispatchNotificationFailedParams {
   error: string;
   attemptedAt: string;
   chatId?: string;
+  headerMessageId?: number;
+  cardMessageId?: number;
 }
 
 /**
@@ -79,6 +81,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       extra_charges,
       comment,
       has_plan,
+      has_photos,
       formatted_card_text,
       telegram_user_id
     ) VALUES (
@@ -113,6 +116,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       @extraCharges,
       @comment,
       @hasPlan,
+      @hasPhotos,
       @formattedCardText,
       @telegramUserId
     )
@@ -187,6 +191,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       extra_charges,
       comment,
       has_plan,
+      has_photos,
       formatted_card_text,
       telegram_user_id,
       dispatch_notification_status,
@@ -236,6 +241,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       extra_charges,
       comment,
       has_plan,
+      has_photos,
       formatted_card_text,
       telegram_user_id,
       dispatch_notification_status,
@@ -272,6 +278,8 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       modify_datetime = @attemptedAt,
       dispatch_notification_status = 'failed',
       dispatch_notification_chat_id = COALESCE(@chatId, dispatch_notification_chat_id),
+      dispatch_notification_header_message_id = COALESCE(@headerMessageId, dispatch_notification_header_message_id),
+      dispatch_notification_card_message_id = COALESCE(@cardMessageId, dispatch_notification_card_message_id),
       dispatch_notification_error = @error,
       dispatch_notification_attempts = dispatch_notification_attempts + 1,
       dispatch_notification_last_attempt_at = @attemptedAt
@@ -342,6 +350,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       extraCharges: order.extraCharges ?? null,
       comment: order.comment ?? null,
       hasPlan: null,
+      hasPhotos: order.hasPhotos ? 1 : 0,
       formattedCardText: order.formattedCardText,
       telegramUserId: order.telegramUserId ?? null
     });
@@ -387,7 +396,9 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
         orderId: params.orderId,
         error: params.error,
         attemptedAt: params.attemptedAt,
-        chatId: params.chatId ?? null
+        chatId: params.chatId ?? null,
+        headerMessageId: params.headerMessageId ?? null,
+        cardMessageId: params.cardMessageId ?? null
       });
     },
     countOrders() {
@@ -444,6 +455,7 @@ function mapOrderRow(row: unknown): OrderRecord {
     extra_charges: optionalString(order.extra_charges),
     comment: optionalString(order.comment),
     has_plan: optionalString(order.has_plan),
+    has_photos: optionalNumber(order.has_photos) ?? 0,
     formatted_card_text: String(order.formatted_card_text),
     telegram_user_id: optionalString(order.telegram_user_id),
     dispatch_notification_status: mapDispatchNotificationStatus(order.dispatch_notification_status),

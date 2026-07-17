@@ -144,6 +144,7 @@ is_payment_by_fixed
 * доплаты;
 * комментарий;
 * готовый текст карточки;
+* флаг наличия фотографий на момент подтверждения;
 * Telegram user id;
 * статус и метаданные dispatch-отправки.
 * snapshot-поля результата проверки адреса через DaData.
@@ -169,6 +170,13 @@ Geo snapshot-поля адреса:
 Широта и долгота на MVP не сохраняются.
 
 `address_beltway_distance_km` не выводится в карточке заявки. В карточке показывается только тарифная строка салона `Километраж от МКАД X₽/км`, и только если `address_beltway_hit = OUT_MKAD`.
+
+`orders.has_photos` — флаг, были ли фотографии в wizard-сессии в момент подтверждения заявки:
+
+* `0` — в момент подтверждения фотографий не было;
+* `1` — в момент подтверждения фотографии были.
+
+Поле не гарантирует успешную доставку фотографий в dispatch-чат. Telegram `file_id`, `file_unique_id`, пути файлов и бинарные данные фотографий в БД не сохраняются.
 
 Dispatch notification поля:
 
@@ -296,12 +304,17 @@ default_payment_by
 * production backup-файлы;
 * персональные dump-файлы.
 
-Сейчас `.gitignore` уже закрывает `.env`, `data/*.sqlite`, `data/*.sqlite-journal`, `node_modules` и `dist`.
-
-Рекомендуется дополнить позже:
+Сейчас `.gitignore` закрывает:
 
 ```gitignore
+.env
+data/*.sqlite
 data/*.sqlite-*
+data/*.sqlite-journal
+data/*.db
+data/*.db-*
 logs/
 backups/
+node_modules/
+dist/
 ```

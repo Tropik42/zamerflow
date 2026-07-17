@@ -34,6 +34,15 @@ type TextContext = Context & {
   };
 };
 
+type PhotoContext = Context & {
+  message: {
+    photo: Array<{
+      file_id: string;
+      file_unique_id?: string;
+    }>;
+  };
+};
+
 const cancelText = "❌ Отменить создание заявки";
 const newOrderText = "➕ Новая заявка";
 const whoamiText = "👤 Кто я";
@@ -41,6 +50,13 @@ const helpText = "ℹ️ Помощь";
 const skipText = "Пропустить";
 const finishItemsText = "Готово";
 const salonsPerPage = 10;
+const maxOrderPhotos = 5;
+const photosQuestionText = [
+  "Есть фото / проект / план помещения?",
+  "",
+  "Отправьте до 5 фотографий.",
+  "Когда закончите, нажмите «Готово»."
+].join("\n");
 
 const sessions = new Map<string, WizardSession>();
 const pendingAuthTelegramUserIds = new Set<string>();
@@ -254,6 +270,8 @@ export function registerOrderWizard(
       return;
     }
 
+    const photosForSubmission = [...session.photos];
+
     session.isSubmitting = true;
 
     const formattedCardText = formatOrderCard(session.draft);
@@ -262,17 +280,27 @@ export function registerOrderWizard(
       status: "accepted",
       address: session.draft.address,
       formattedCardText,
+      hasPhotos: photosForSubmission.length > 0,
       telegramUserId: String(userId)
     };
+
+    if (photosForSubmission.length > 0) {
+      logInfo("order_confirmed_with_photos", {
+        ...photoLifecycleLogFields(ctx, session),
+        photo_count: photosForSubmission.length
+      });
+    }
 
     try {
       const result = await orderSubmissionService.submitAcceptedOrder({
         order,
+        photos: photosForSubmission,
         sourceChatId: ctx.chat?.id
       });
 
       session.acceptedOrderId = result.orderId;
       session.isSubmitting = false;
+      session.photos = [];
 
       if (result.dispatchNotificationStatus === "sent") {
         await ctx.reply(
@@ -283,7 +311,7 @@ export function registerOrderWizard(
       }
 
       await ctx.reply(
-        `⚠️ Заявка #${result.orderId} сохранена, но не удалось отправить карточку в рабочий чат.\nАдминистратор сможет проверить её в админке.`,
+        `⚠️ Заявка #${result.orderId} сохранена, но не удалось полностью отправить её в рабочий чат.\nФотографии временно не сохраняются, поэтому для их повторной отправки может потребоваться создать заявку заново или отправить фото вручную.`,
         mainKeyboardForChat(ctx)
       );
     } catch {
@@ -301,6 +329,11 @@ export function registerOrderWizard(
     const session = getSession(ctx);
     if (session?.acceptedOrderId) {
       await ctx.reply(`Заявка уже принята. Номер заявки: #${session.acceptedOrderId}`);
+      return;
+    }
+
+    if (session?.isSubmitting) {
+      await ctx.reply("Заявка уже обрабатывается.");
       return;
     }
 
@@ -322,6 +355,130 @@ export function registerOrderWizard(
     }
 
     await skipOptionalStep(ctx, session, addressGeoService);
+  });
+
+  bot.action("photos_skip", async (ctx) => {
+    await safeAnswerCbQuery(ctx);
+
+    const session = getSession(ctx);
+    if (!session || session.step !== "photos") {
+      await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
+      return;
+    }
+
+    if (session.isSubmitting) {
+      await ctx.reply("Заявка уже обрабатывается.");
+      return;
+    }
+
+    if (session.photos.length > 0) {
+      await ctx.reply("Фотографии уже прикреплены. Нажмите «Готово» или «Очистить фото».", photosStepKeyboard(true));
+      return;
+    }
+
+    logInfo("order_photo_step_skipped", {
+      ...photoLifecycleLogFields(ctx, session),
+      photo_count: 0
+    });
+
+    await showPreview(ctx, session, addressGeoService);
+  });
+
+  bot.action("photos_done", async (ctx) => {
+    await safeAnswerCbQuery(ctx);
+
+    const session = getSession(ctx);
+    if (!session || session.step !== "photos") {
+      await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
+      return;
+    }
+
+    if (session.isSubmitting) {
+      await ctx.reply("Заявка уже обрабатывается.");
+      return;
+    }
+
+    if (session.photos.length === 0) {
+      await ctx.reply("Фотографии не прикреплены. Можно отправить фото или нажать «Пропустить».", photosStepKeyboard(false));
+      return;
+    }
+
+    logInfo("order_photo_step_completed", {
+      ...photoLifecycleLogFields(ctx, session),
+      photo_count: session.photos.length
+    });
+
+    await showPreview(ctx, session, addressGeoService);
+  });
+
+  bot.action("photos_clear", async (ctx) => {
+    await safeAnswerCbQuery(ctx);
+
+    const session = getSession(ctx);
+    if (!session || (session.step !== "photos" && session.step !== "preview")) {
+      await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
+      return;
+    }
+
+    if (session.acceptedOrderId) {
+      await ctx.reply(`Заявка уже принята. Номер заявки: #${session.acceptedOrderId}`);
+      return;
+    }
+
+    if (session.isSubmitting) {
+      await ctx.reply("Заявка уже обрабатывается.");
+      return;
+    }
+
+    const previousPhotoCount = session.photos.length;
+    session.photos = [];
+
+    logInfo("order_photos_cleared", {
+      ...photoLifecycleLogFields(ctx, session),
+      photo_count: previousPhotoCount
+    });
+
+    if (session.step === "photos") {
+      await ctx.reply(
+        "Все фотографии удалены.\nМожно отправить новые фотографии или нажать «Пропустить».",
+        photosStepKeyboard(false)
+      );
+      return;
+    }
+
+    await updatePreviewMessage(ctx, session);
+  });
+
+  bot.on("photo", async (ctx) => {
+    await handlePhoto(ctx as PhotoContext);
+  });
+
+  bot.on("document", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
+  });
+
+  bot.on("video", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
+  });
+
+  bot.on("animation", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
+  });
+
+  bot.on("audio", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
+  });
+
+  bot.on("voice", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
+  });
+
+  bot.on("video_note", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
+  });
+
+  bot.on("sticker", async (ctx) => {
+    await handleUnsupportedPhotoStepAttachment(ctx);
   });
 
   bot.on("text", async (ctx) => {
@@ -507,6 +664,7 @@ async function startNewOrder(
 
     sessions.set(sessionKey, {
       step: "clientContact",
+      photos: [],
       draft: {
         salonId: salon.salon_id,
         managerId: user.manager_id,
@@ -544,6 +702,7 @@ async function startNewOrder(
 
   sessions.set(sessionKey, {
     step: "selectSalon",
+    photos: [],
     draft: {
       serviceItems: []
     }
@@ -674,12 +833,91 @@ async function handleText(
       }
 
       session.draft.comment = text;
-      await showPreview(ctx, session, addressGeoService);
+      await askPhotos(ctx, session);
+      return;
+    case "photos":
+      await ctx.reply("Отправьте фотографии или используйте кнопки под сообщением.");
       return;
     case "preview":
       await ctx.reply("Используйте кнопки под предпросмотром заявки.");
       return;
   }
+}
+
+async function handlePhoto(ctx: PhotoContext): Promise<void> {
+  const session = getSession(ctx);
+
+  if (!session || session.step !== "photos") {
+    return;
+  }
+
+  if (session.isSubmitting) {
+    await ctx.reply("Заявка уже обрабатывается.");
+    return;
+  }
+
+  if (!isPrivateChat(ctx) && !isReplyToBot(ctx)) {
+    return;
+  }
+
+  if (session.photos.length >= maxOrderPhotos) {
+    logInfo("order_photo_limit_exceeded", {
+      ...photoLifecycleLogFields(ctx, session),
+      photo_count: session.photos.length
+    });
+
+    await ctx.reply(
+      [
+        "Достигнут лимит: к заявке можно прикрепить не более 5 фото.",
+        "",
+        `Сейчас прикреплено: ${session.photos.length}.`,
+        "Нажмите «Готово» или «Очистить фото»."
+      ].join("\n"),
+      photosStepKeyboard(true)
+    );
+    return;
+  }
+
+  const photo = ctx.message.photo[ctx.message.photo.length - 1];
+
+  session.photos.push({
+    fileId: photo.file_id,
+    fileUniqueId: photo.file_unique_id
+  });
+
+  logInfo("order_photo_added", {
+    ...photoLifecycleLogFields(ctx, session),
+    photo_count: session.photos.length
+  });
+
+  await ctx.reply(
+    `Фото добавлено: ${session.photos.length} из ${maxOrderPhotos}.\nМожно отправить ещё или нажать «Готово».`,
+    photosStepKeyboard(true)
+  );
+}
+
+async function handleUnsupportedPhotoStepAttachment(ctx: Context): Promise<void> {
+  const session = getSession(ctx);
+
+  if (!session || session.step !== "photos") {
+    return;
+  }
+
+  if (session.isSubmitting) {
+    await ctx.reply("Заявка уже обрабатывается.");
+    return;
+  }
+
+  if (!isPrivateChat(ctx) && !isReplyToBot(ctx)) {
+    return;
+  }
+
+  await ctx.reply(
+    session.photos.length === 0
+      ? "Пока можно прикрепить только фотографии.\nОтправьте изображение как фото или нажмите «Пропустить»."
+      : "Пока можно прикрепить только фотографии.\nОтправьте изображение как фото или нажмите «Готово».",
+    photosStepKeyboard(session.photos.length > 0)
+  );
 }
 
 /**
@@ -790,6 +1028,22 @@ async function askMeasureTime(ctx: Context): Promise<void> {
     "7. Желаемое время прибытия замерщика? Можно пропустить.",
     true
   );
+}
+
+async function askPhotos(ctx: Context, session: WizardSession): Promise<void> {
+  session.step = "photos";
+
+  if (isPrivateChat(ctx)) {
+    await ctx.reply(photosQuestionText, Markup.removeKeyboard());
+    await ctx.reply("Можно пропустить этот шаг:", photosStepKeyboard(false));
+    return;
+  }
+
+  await ctx.reply(
+    `${photosQuestionText}\n\nОтправьте фотографии ответом на это сообщение. Для отмены создания всей заявки наберите команду /cancel.`,
+    Markup.forceReply().selective()
+  );
+  await ctx.reply("Можно пропустить этот шаг:", photosStepKeyboard(false));
 }
 
 /**
@@ -961,16 +1215,38 @@ function paymentKeyboard() {
   ]);
 }
 
+function photosStepKeyboard(hasPhotos: boolean) {
+  if (hasPhotos) {
+    return Markup.inlineKeyboard([
+      [Markup.button.callback("Готово", "photos_done")],
+      [Markup.button.callback("Очистить фото", "photos_clear")],
+      [Markup.button.callback(cancelText, "cancel_order")]
+    ]);
+  }
+
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Пропустить", "photos_skip")],
+    [Markup.button.callback(cancelText, "cancel_order")]
+  ]);
+}
+
 /**
  * Создаёт inline-клавиатуру действий на предпросмотре заявки.
  * @returns {ReturnType<typeof Markup.inlineKeyboard>} Inline-клавиатура принятия, перезаполнения и отмены.
  */
-function previewKeyboard() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback("✅ Принять", "accept_order")],
+function previewKeyboard(photoCount: number) {
+  const rows = [[Markup.button.callback("✅ Принять", "accept_order")]];
+
+  if (photoCount > 0) {
+    rows.push([Markup.button.callback("🗑 Очистить фото", "photos_clear")]);
+  }
+
+  rows.push(
     [Markup.button.callback("✏️ Заполнить заново", "restart_order")],
     [Markup.button.callback(cancelText, "cancel_order")]
-  ]);
+  );
+
+  return Markup.inlineKeyboard(rows);
 }
 
 /**
@@ -1009,6 +1285,15 @@ function formatManagerContact(user: AuthenticatedUser): string | undefined {
   return user.manager_name ?? user.manager_phone;
 }
 
+function photoLifecycleLogFields(ctx: Context, session: WizardSession) {
+  return {
+    telegram_user_id: getTelegramUserId(ctx),
+    source_chat_id: ctx.chat?.id,
+    salon_id: session.draft.salonId,
+    manager_id: session.draft.managerId
+  };
+}
+
 /**
  * Формирует ключ wizard-сессии по паре chat id и user id.
  * @param {Context} ctx Контекст Telegram-обновления.
@@ -1037,7 +1322,7 @@ function getSession(ctx: Context): WizardSession | undefined {
  * @param {TextContext} ctx Контекст текстового сообщения.
  * @returns {boolean} true, если пользователь ответил на сообщение бота.
  */
-function isReplyToBot(ctx: TextContext): boolean {
+function isReplyToBot(ctx: Context): boolean {
   const message = ctx.message as {
     reply_to_message?: {
       from?: {
@@ -1087,13 +1372,24 @@ async function showPreview(
   session.step = "preview";
   await enrichDraftAddress(session.draft, addressGeoService);
 
-  if (isPrivateChat(ctx)) {
-    await ctx.reply("Предпросмотр заявки:", Markup.removeKeyboard());
-  } else {
-    await ctx.reply("Предпросмотр заявки:");
-  }
+  await ctx.reply(previewText(session), previewKeyboard(session.photos.length));
+}
 
-  await ctx.reply(formatOrderCard(session.draft), previewKeyboard());
+async function updatePreviewMessage(ctx: Context, session: WizardSession): Promise<void> {
+  try {
+    await ctx.editMessageText(previewText(session), previewKeyboard(session.photos.length));
+  } catch {
+    await ctx.reply(previewText(session), previewKeyboard(session.photos.length));
+  }
+}
+
+function previewText(session: WizardSession): string {
+  return [
+    "Предпросмотр заявки",
+    `Прикреплено фото: ${session.photos.length}`,
+    "",
+    formatOrderCard(session.draft)
+  ].join("\n");
 }
 
 async function enrichDraftAddress(
@@ -1140,7 +1436,7 @@ async function skipOptionalStep(
       return;
     case "comment":
       session.draft.comment = undefined;
-      await showPreview(ctx, session, addressGeoService);
+      await askPhotos(ctx, session);
       return;
     default:
       await ctx.reply("Сейчас этот шаг нельзя пропустить.");
@@ -1158,6 +1454,11 @@ async function cancelOrder(ctx: Context): Promise<void> {
 
   if (session?.acceptedOrderId) {
     await ctx.reply(`Заявка уже принята. Номер заявки: #${session.acceptedOrderId}`);
+    return;
+  }
+
+  if (session?.isSubmitting) {
+    await ctx.reply("Заявка уже обрабатывается.");
     return;
   }
 

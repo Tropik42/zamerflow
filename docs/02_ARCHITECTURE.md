@@ -141,6 +141,18 @@ OrderSubmissionService
 → Telegram group chat from DISPATCH_CHAT_ID
 ```
 
+Временные фотографии заявки проходят отдельным ephemeral-потоком:
+
+```text
+Telegram photo messages
+→ WizardSession.photos[file_id]
+→ OrderSubmissionService
+→ DispatchNotificationService
+→ Telegram dispatch group
+```
+
+Фотографии не входят в `OrderDraft` и snapshot заявки. Бот хранит только Telegram `file_id` в in-memory `WizardSession` до подтверждения заявки. В SQLite сохраняется только флаг `orders.has_photos`, а сами `file_id`, `file_unique_id`, файлы, пути Telegram и бинарные данные не сохраняются. Файлового хранилища на MVP нет. При рестарте процесса незавершённая сессия и прикреплённые к ней фотографии теряются.
+
 Внешнее обогащение адреса:
 
 ```text

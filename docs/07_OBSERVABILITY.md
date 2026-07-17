@@ -81,6 +81,12 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * `order_draft_started`: `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `initial_step`;
 * `order_draft_salon_selected`: `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `step`;
 * `order_draft_cancelled`: `telegram_user_id`, `chat_id`, `step`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `has_session`;
+* `order_photo_added`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
+* `order_photo_limit_exceeded`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
+* `order_photos_cleared`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
+* `order_photo_step_skipped`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
+* `order_photo_step_completed`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
+* `order_confirmed_with_photos`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
 * `order_created`: `order_id`, `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `measure_date`, `measure_time`, `address_beltway_hit`, `address_beltway_distance_km`, `address_geo_source`;
 * `order_save_failed`: `telegram_user_id`, `chat_id`, `salon_id`, `manager_id`, `message`.
 
@@ -90,12 +96,24 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * `dispatch_notification_failed`: `order_id`, `chat_id`, `error_code`, `attempt`;
 * `dispatch_notification_retry`: `order_id`, `chat_id`, `attempt`;
 * `dispatch_notification_skipped`: `order_id`, `error_code`.
+* `dispatch_header_sent`: `order_id`, `dispatch_chat_id`;
+* `dispatch_photos_sent`: `order_id`, `dispatch_chat_id`, `photo_count`, `send_mode`;
+* `dispatch_photos_failed`: `order_id`, `dispatch_chat_id`, `photo_count`, `send_mode`, `failed_stage`, `error_code`;
+* `dispatch_card_sent`: `order_id`, `dispatch_chat_id`, `failed_stage`;
+* `dispatch_card_failed`: `order_id`, `dispatch_chat_id`, `failed_stage`, `error_code`.
+
+`send_mode` для фотографий:
+
+* `none` — фотографий нет;
+* `single_photo` — одна фотография через `sendPhoto`;
+* `media_group` — от 2 до 5 фотографий через `sendMediaGroup`.
 
 В логах не должно быть:
 
 * Telegram bot token;
 * DaData API key и secret;
 * auth codes;
+* Telegram `file_id`, `file_unique_id` и `media_group_id`;
 * телефонов клиентов;
 * телефонов менеджеров;
 * полного адреса клиента;
