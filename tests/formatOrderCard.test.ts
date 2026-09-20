@@ -22,9 +22,47 @@ const baseDraft: OrderDraft = {
 
 const formattedCard = formatOrderCard(baseDraft);
 
+assert.match(formattedCard, /^менеджер: \+7-999-123-45-67 Олег$/m);
+assert.doesNotMatch(formattedCard, /менеджер: Олег, \+7-999-123-45-67/);
 assert.match(formattedCard, /Стартовая стоимость \*от 2,500₽\*\./);
 assert.match(formattedCard, /Доппозиции \*по 1,000₽-1,500₽\*\./);
 assert.match(formattedCard, /Километраж \*от МКАД\* \*60₽\/км\*\./);
+
+const directorCard = formatOrderCard({
+  ...baseDraft,
+  managerRoleSnapshot: "director",
+  managerNameSnapshot: "Константин",
+  managerPhoneSnapshot: "+7-960-801-50-50"
+});
+
+assert.match(directorCard, /^директор: \+7-960-801-50-50 Константин$/m);
+
+const onlyManagerPhoneCard = formatOrderCard({
+  ...baseDraft,
+  managerNameSnapshot: undefined,
+  managerPhoneSnapshot: "+7-985-524-66-40",
+  managerContact: "legacy contact"
+});
+
+assert.match(onlyManagerPhoneCard, /^менеджер: \+7-985-524-66-40$/m);
+
+const onlyManagerNameCard = formatOrderCard({
+  ...baseDraft,
+  managerNameSnapshot: "Елена Климова",
+  managerPhoneSnapshot: undefined,
+  managerContact: "legacy contact"
+});
+
+assert.match(onlyManagerNameCard, /^менеджер: Елена Климова$/m);
+
+const legacyManagerContactCard = formatOrderCard({
+  ...baseDraft,
+  managerNameSnapshot: undefined,
+  managerPhoneSnapshot: undefined,
+  managerContact: "старый контакт менеджера"
+});
+
+assert.match(legacyManagerContactCard, /^менеджер: старый контакт менеджера$/m);
 
 const highBasePriceCard = formatOrderCard({
   ...baseDraft,

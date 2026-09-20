@@ -24,11 +24,14 @@ function moneyOrDash(value: number | undefined): string {
 }
 
 function managerText(draft: OrderDraft): string | undefined {
-  if (draft.managerNameSnapshot && draft.managerPhoneSnapshot) {
-    return `${draft.managerNameSnapshot}, ${draft.managerPhoneSnapshot}`;
+  const managerPhone = draft.managerPhoneSnapshot?.trim();
+  const managerName = draft.managerNameSnapshot?.trim();
+
+  if (managerPhone || managerName) {
+    return [managerPhone, managerName].filter((value): value is string => Boolean(value)).join(" ");
   }
 
-  return draft.managerNameSnapshot ?? draft.managerContact;
+  return draft.managerContact;
 }
 
 function managerLabel(draft: OrderDraft): string {
