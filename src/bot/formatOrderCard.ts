@@ -55,7 +55,7 @@ function titleText(draft: OrderDraft): string {
   const dateText = valueOrDash(draft.measureDate);
   const timeText = draft.measureTime?.trim();
 
-  return timeText ? `*На ${dateText} ${timeText} ❗*` : `*На ${dateText}*`;
+  return timeText ? `*На ${dateText}* ${timeText} ❗` : `*На ${dateText}*`;
 }
 
 /**
