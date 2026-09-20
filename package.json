@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "test:phone": "tsx tests/phoneNormalization.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

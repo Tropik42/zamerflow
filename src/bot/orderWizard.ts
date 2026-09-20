@@ -19,6 +19,11 @@ import {
 } from "./measureServiceItems.js";
 import { safeAnswerCbQuery } from "./safeAnswerCbQuery.js";
 import { formatWhoamiProfile } from "./whoamiProfile.js";
+import {
+  countPhoneDigits,
+  normalizeRussianPhoneInText,
+  PhoneNormalizationError
+} from "../services/phoneNormalization.js";
 import type { AuthenticatedUser } from "../types/auth.js";
 import type {
   AcceptedOrder,
@@ -57,6 +62,7 @@ const photosQuestionText = [
   "Отправьте до 5 фотографий.",
   "Когда закончите, нажмите «Готово»."
 ].join("\n");
+const clientContactQuestionText = "Контакт клиента или представиталя - номер телефона, имя. Например: +79859651223 Виктория";
 
 const sessions = new Map<string, WizardSession>();
 const pendingAuthTelegramUserIds = new Set<string>();
@@ -696,7 +702,7 @@ async function startNewOrder(
       initial_step: "clientContact"
     });
 
-    await replyQuestion(ctx, "Контакт клиента или представителя.");
+    await replyQuestion(ctx, clientContactQuestionText);
     return;
   }
 
@@ -770,10 +776,23 @@ async function handleText(
       session.draft.managerNameSnapshot = text;
       session.draft.managerRoleSnapshot = "manager";
       session.step = "clientContact";
-      await replyQuestion(ctx, "3. Контакт клиента или представителя.");
+      await replyQuestion(ctx, `3. ${clientContactQuestionText}`);
       return;
     case "clientContact":
-      session.draft.clientContact = text;
+      try {
+        session.draft.clientContact = normalizeRussianPhoneInText(text).value;
+      } catch (error) {
+        if (error instanceof PhoneNormalizationError) {
+          await ctx.reply(
+            invalidClientPhoneText(text, error),
+            cancelKeyboard()
+          );
+          return;
+        }
+
+        throw error;
+      }
+
       session.step = "address";
       await replyQuestion(ctx, "4. Точный адрес клиента с населённым пунктом.");
       return;
@@ -1283,6 +1302,16 @@ function formatManagerContact(user: AuthenticatedUser): string | undefined {
   }
 
   return user.manager_name ?? user.manager_phone;
+}
+
+function invalidClientPhoneText(value: string, error: PhoneNormalizationError): string {
+  const digitCount = error.digitCount ?? countPhoneDigits(value);
+
+  return [
+    "Телефон должен быть российским номером, состоящим из 11 цифр.",
+    "Например: 79991234567.",
+    `Во введённом вами номере ${digitCount} цифр.`
+  ].join(" ");
 }
 
 function photoLifecycleLogFields(ctx: Context, session: WizardSession) {

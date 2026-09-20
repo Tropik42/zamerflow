@@ -6,13 +6,18 @@ import {
   requiredString,
   stringValue
 } from "../form.js";
-import { field, form, layout, selectField, table, value, yesNo } from "../html.js";
+import { escapeHtml, field, form, layout, selectField, table, value, yesNo } from "../html.js";
 import type { SalonRepository } from "../../db/salonRepository.js";
 import type {
   SalonManager,
   SalonManagerFormParams,
   SalonManagerRepository
 } from "../../db/salonManagerRepository.js";
+import {
+  normalizeOptionalRussianPhone,
+  PhoneNormalizationError,
+  russianPhoneFormatHint
+} from "../../services/phoneNormalization.js";
 
 export function registerManagerRoutes(
   app: FastifyInstance,
@@ -63,7 +68,26 @@ export function registerManagerRoutes(
   });
 
   app.post("/admin/managers", async (request, reply) => {
-    managerRepository.createManager(parseManagerForm(request.body));
+    try {
+      managerRepository.createManager(parseManagerForm(request.body));
+    } catch (error) {
+      if (error instanceof PhoneNormalizationError) {
+        reply.code(400);
+        return layout(
+          "Создать менеджера",
+          `<h1>Создать менеджера</h1>${managerForm(
+            "/admin/managers",
+            salonRepository.getActiveSalons(),
+            managerFormValuesFromBody(request.body),
+            error.message,
+            "Создать"
+          )}`
+        );
+      }
+
+      throw error;
+    }
+
     return reply.redirect("/admin/managers");
   });
 
@@ -86,7 +110,28 @@ export function registerManagerRoutes(
   });
 
   app.post<{ Params: { managerId: string } }>("/admin/managers/:managerId", async (request, reply) => {
-    managerRepository.updateManager(Number(request.params.managerId), parseManagerForm(request.body));
+    const managerId = Number(request.params.managerId);
+
+    try {
+      managerRepository.updateManager(managerId, parseManagerForm(request.body));
+    } catch (error) {
+      if (error instanceof PhoneNormalizationError) {
+        reply.code(400);
+        return layout(
+          "Редактировать менеджера",
+          `<h1>Редактировать менеджера</h1>${managerForm(
+            `/admin/managers/${managerId}`,
+            salonRepository.getAllSalons(),
+            managerFormValuesFromBody(request.body),
+            error.message,
+            "Сохранить"
+          )}`
+        );
+      }
+
+      throw error;
+    }
+
     return reply.redirect("/admin/managers");
   });
 }
@@ -94,9 +139,13 @@ export function registerManagerRoutes(
 function managerForm(
   action: string,
   salons: { salon_id: number; salon_name: string }[],
-  manager?: SalonManager
+  manager?: Partial<SalonManager>,
+  error?: string,
+  submitLabel = manager?.manager_id ? "Сохранить" : "Создать"
 ): string {
-  return form(
+  const errorHtml = error ? `<div class="error">${escapeHtml(error)}</div>` : "";
+
+  return `${errorHtml}${form(
     action,
     [
       selectField(
@@ -106,7 +155,7 @@ function managerForm(
         manager?.salon_id
       ),
       field({ name: "manager_name", label: "Имя менеджера", value: manager?.manager_name, required: true }),
-      field({ name: "manager_phone", label: "Телефон", value: manager?.manager_phone }),
+      field({ name: "manager_phone", label: `Телефон (${russianPhoneFormatHint})`, value: manager?.manager_phone }),
       field({ name: "manager_email", label: "Email", type: "email", value: manager?.manager_email }),
       field({ name: "position_title", label: "Должность", value: manager?.position_title }),
       selectField(
@@ -121,11 +170,26 @@ function managerForm(
       field({ name: "sort_order", label: "Порядок сортировки", type: "number", value: manager?.sort_order ?? 1000 }),
       field({ name: "is_active", label: "Активен", type: "checkbox", value: manager?.is_active ?? 1 })
     ].join(""),
-    manager ? "Сохранить" : "Создать"
-  );
+    submitLabel
+  )}`;
 }
 
 function parseManagerForm(body: unknown): SalonManagerFormParams {
+  const formBody = asFormBody(body);
+
+  return {
+    salon_id: requiredNumber(formBody, "salon_id"),
+    manager_name: requiredString(formBody, "manager_name"),
+    manager_phone: normalizeOptionalRussianPhone(stringValue(formBody, "manager_phone")),
+    manager_email: stringValue(formBody, "manager_email"),
+    position_title: stringValue(formBody, "position_title"),
+    manager_role: parseManagerRole(stringValue(formBody, "manager_role")),
+    sort_order: requiredNumber(formBody, "sort_order", 1000),
+    is_active: checkboxValue(formBody, "is_active")
+  };
+}
+
+function managerFormValuesFromBody(body: unknown): Partial<SalonManager> {
   const formBody = asFormBody(body);
 
   return {

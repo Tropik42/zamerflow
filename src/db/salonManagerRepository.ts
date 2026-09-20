@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./db.js";
+import { normalizeOptionalRussianPhone } from "../services/phoneNormalization.js";
 
 export interface SalonManager {
   manager_id: number;
@@ -165,7 +166,7 @@ function toManagerSqlParams(params: SalonManagerFormParams) {
   return {
     salonId: params.salon_id,
     managerName: params.manager_name,
-    managerPhone: params.manager_phone ?? null,
+    managerPhone: normalizeOptionalRussianPhone(params.manager_phone) ?? null,
     managerEmail: params.manager_email ?? null,
     positionTitle: params.position_title ?? null,
     managerRole: params.manager_role,
