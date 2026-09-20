@@ -17,10 +17,10 @@ function valueOrDash(value: string | undefined): string {
 /**
  * Форматирует сумму в рублях или возвращает прочерк.
  * @param {number | undefined} value Сумма в рублях.
- * @returns {string} Строка вида "2500₽" или "-".
+ * @returns {string} Строка вида "2,500₽" или "-".
  */
 function moneyOrDash(value: number | undefined): string {
-  return value === undefined ? "-" : `${value}₽`;
+  return value === undefined ? "-" : `${value.toLocaleString("en-US")}₽`;
 }
 
 function managerText(draft: OrderDraft): string | undefined {
@@ -99,7 +99,7 @@ export function formatOrderCard(draft: OrderDraft): string {
     `Стартовая стоимость *от ${moneyOrDash(draft.basePrice)}*.`,
     `Доппозиции *по ${extraPriceText}*.`,
     draft.addressBeltwayHit === "OUT_MKAD" && draft.mileagePricePerKm !== undefined
-      ? `Километраж *от МКАД* *${draft.mileagePricePerKm}₽/км*.`
+      ? `Километраж *от МКАД* *${moneyOrDash(draft.mileagePricePerKm)}/км*.`
       : undefined,
     autoAddedTariffText || undefined,
     draft.extraCharges ? `*Доплаты / особенности:* ${draft.extraCharges}` : undefined,
