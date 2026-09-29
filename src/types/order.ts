@@ -231,10 +231,22 @@ export type WizardStep =
   | "photos"
   | "preview";
 
+export type MainOrderWizardStep =
+  | "clientContact"
+  | "address"
+  | "metro"
+  | "measureDate"
+  | "measureTime"
+  | "serviceItems"
+  | "paymentBy"
+  | "extraCharges"
+  | "comment";
+
 export interface WizardSession {
   step: WizardStep;
   draft: OrderDraft;
   photos: DraftPhoto[];
+  mainSteps?: MainOrderWizardStep[];
   isSubmitting?: boolean;
   acceptedOrderId?: number;
 }

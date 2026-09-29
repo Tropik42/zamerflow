@@ -8,6 +8,10 @@ import type { AddressGeoService } from "../services/addressGeoService.js";
 import type { OrderSubmissionService } from "../services/orderSubmissionService.js";
 import { formatOrderCard } from "./formatOrderCard.js";
 import {
+  createMainOrderWizardSteps,
+  formatOrderWizardQuestion
+} from "./orderWizardProgress.js";
+import {
   getMeasurePaymentOptionByKey,
   isMeasurePaymentValue,
   measurePaymentOptions
@@ -62,7 +66,10 @@ const photosQuestionText = [
   "Отправьте до 5 фотографий.",
   "Когда закончите, нажмите «Готово»."
 ].join("\n");
-const clientContactQuestionText = "Контакт клиента или представиталя - номер телефона, имя. Например: +79859651223 Виктория";
+const clientContactQuestionText = [
+  "Контакт клиента или представителя — номер телефона, имя.",
+  "Например: +79859651223 Виктория"
+].join("\n");
 
 const sessions = new Map<string, WizardSession>();
 const pendingAuthTelegramUserIds = new Set<string>();
@@ -229,7 +236,7 @@ export function registerOrderWizard(
     }
 
     session.step = "manualServiceItem";
-    await replyQuestion(ctx, "Введите позицию под замер вручную.");
+    await askMainQuestion(ctx, session, "Введите позицию под замер вручную.");
   });
 
   bot.action(/^payment:(client|salon|deposit|ipToSelfEmployed)$/, async (ctx) => {
@@ -245,7 +252,7 @@ export function registerOrderWizard(
 
     session.draft.paymentBy = paymentOption.value;
     session.step = "extraCharges";
-    await replyQuestion(ctx, "10. Доплаты / особенности. Можно пропустить.", true);
+    await askMainQuestion(ctx, session, "Доплаты / особенности. Можно пропустить.", true);
   });
 
   bot.action("accept_order", async (ctx) => {
@@ -668,7 +675,7 @@ async function startNewOrder(
       return;
     }
 
-    sessions.set(sessionKey, {
+    const session: WizardSession = {
       step: "clientContact",
       photos: [],
       draft: {
@@ -690,7 +697,9 @@ async function startNewOrder(
         isPaymentByFixed: salon.is_payment_by_fixed === 1 && Boolean(salon.default_payment_by),
         serviceItems: getRequiredServiceItems(salon.salon_id, salonRequiredItemRepository)
       }
-    });
+    };
+    session.mainSteps = createMainOrderWizardSteps(session.draft);
+    sessions.set(sessionKey, session);
 
     logInfo("order_draft_started", {
       telegram_user_id: telegramUserId,
@@ -702,7 +711,7 @@ async function startNewOrder(
       initial_step: "clientContact"
     });
 
-    await replyQuestion(ctx, clientContactQuestionText);
+    await askMainQuestion(ctx, session, clientContactQuestionText);
     return;
   }
 
@@ -776,7 +785,7 @@ async function handleText(
       session.draft.managerNameSnapshot = text;
       session.draft.managerRoleSnapshot = "manager";
       session.step = "clientContact";
-      await replyQuestion(ctx, `3. ${clientContactQuestionText}`);
+      await askMainQuestion(ctx, session, clientContactQuestionText);
       return;
     case "clientContact":
       try {
@@ -794,12 +803,12 @@ async function handleText(
       }
 
       session.step = "address";
-      await replyQuestion(ctx, "4. Точный адрес клиента с населённым пунктом.");
+      await askMainQuestion(ctx, session, "Точный адрес клиента с населённым пунктом.");
       return;
     case "address":
       session.draft.address = text;
       session.step = "metro";
-      await replyQuestion(ctx, "5. Метро / ориентир. Можно пропустить.", true);
+      await askMainQuestion(ctx, session, "Метро / ориентир. Можно пропустить.", true);
       return;
     case "metro":
       if (text === skipText) {
@@ -809,12 +818,12 @@ async function handleText(
 
       session.draft.metro = text;
       session.step = "measureDate";
-      await replyQuestion(ctx, "6. Дата замера.");
+      await askMainQuestion(ctx, session, "Дата замера.");
       return;
     case "measureDate":
       session.draft.measureDate = text;
       session.step = "measureTime";
-      await askMeasureTime(ctx);
+      await askMeasureTime(ctx, session);
       return;
     case "measureTime":
       if (text === skipText) {
@@ -824,7 +833,7 @@ async function handleText(
 
       session.draft.measureTime = text;
       session.step = "selectServiceItem";
-      await askServiceItem(ctx);
+      await askServiceItem(ctx, session);
       return;
     case "selectServiceItem":
       await handleServiceItemSelection(ctx, session, text);
@@ -843,7 +852,7 @@ async function handleText(
 
       session.draft.extraCharges = text;
       session.step = "comment";
-      await replyQuestion(ctx, "11. Комментарий. Можно пропустить.", true);
+      await askMainQuestion(ctx, session, "Комментарий. Можно пропустить.", true);
       return;
     case "comment":
       if (text === skipText) {
@@ -1027,24 +1036,25 @@ async function handlePaymentBy(
 
   session.draft.paymentBy = text;
   session.step = "extraCharges";
-  await replyQuestion(ctx, "10. Доплаты / особенности. Можно пропустить.", true);
+  await askMainQuestion(ctx, session, "Доплаты / особенности. Можно пропустить.", true);
 }
 
 async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): Promise<void> {
   if (session.draft.paymentBy) {
     session.step = "extraCharges";
-    await replyQuestion(ctx, "10. Доплаты / особенности. Можно пропустить.", true);
+    await askMainQuestion(ctx, session, "Доплаты / особенности. Можно пропустить.", true);
     return;
   }
 
   session.step = "paymentBy";
-  await ctx.reply("9. Кто оплачивает замер?", paymentKeyboard());
+  await ctx.reply(mainQuestionText(session, "Кто оплачивает замер?"), paymentKeyboard());
 }
 
-async function askMeasureTime(ctx: Context): Promise<void> {
-  await replyQuestion(
+async function askMeasureTime(ctx: Context, session: WizardSession): Promise<void> {
+  await askMainQuestion(
     ctx,
-    "7. Желаемое время прибытия замерщика? Можно пропустить.",
+    session,
+    "Желаемое время прибытия замерщика? Можно пропустить.",
     true
   );
 }
@@ -1068,10 +1078,17 @@ async function askPhotos(ctx: Context, session: WizardSession): Promise<void> {
 /**
  * Показывает пользователю inline-кнопки выбора позиции замера.
  * @param {Context} ctx Контекст Telegram-обновления.
+ * @param {WizardSession} session Текущая wizard-сессия.
  * @returns {Promise<void>}
  */
-async function askServiceItem(ctx: Context): Promise<void> {
-  await ctx.reply("8. Позиции под замер с количеством. Выберите позицию.", serviceItemsKeyboard(false));
+async function askServiceItem(ctx: Context, session: WizardSession): Promise<void> {
+  await ctx.reply(
+    mainQuestionText(
+      session,
+      "Позиции под замер с количеством. Выберите позицию."
+    ),
+    serviceItemsKeyboard(false)
+  );
 }
 
 /**
@@ -1387,6 +1404,26 @@ async function replyQuestion(ctx: Context, text: string, canSkip = false): Promi
   }
 }
 
+function mainQuestionText(
+  session: WizardSession,
+  questionText: string
+): string {
+  if (!session.mainSteps) {
+    return questionText;
+  }
+
+  return formatOrderWizardQuestion(session.mainSteps, session.step, questionText);
+}
+
+async function askMainQuestion(
+  ctx: Context,
+  session: WizardSession,
+  questionText: string,
+  canSkip = false
+): Promise<void> {
+  await replyQuestion(ctx, mainQuestionText(session, questionText), canSkip);
+}
+
 /**
  * Показывает предпросмотр карточки заявки и inline-действия.
  * @param {Context} ctx Контекст Telegram-обновления.
@@ -1451,17 +1488,17 @@ async function skipOptionalStep(
     case "metro":
       session.draft.metro = undefined;
       session.step = "measureDate";
-      await replyQuestion(ctx, "6. Дата замера.");
+      await askMainQuestion(ctx, session, "Дата замера.");
       return;
     case "measureTime":
       session.draft.measureTime = undefined;
       session.step = "selectServiceItem";
-      await askServiceItem(ctx);
+      await askServiceItem(ctx, session);
       return;
     case "extraCharges":
       session.draft.extraCharges = undefined;
       session.step = "comment";
-      await replyQuestion(ctx, "11. Комментарий. Можно пропустить.", true);
+      await askMainQuestion(ctx, session, "Комментарий. Можно пропустить.", true);
       return;
     case "comment":
       session.draft.comment = undefined;

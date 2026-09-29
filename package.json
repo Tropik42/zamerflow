@@ -7,6 +7,7 @@
     "dev": "tsx src/index.ts",
     "test:order-card": "tsx tests/formatOrderCard.test.ts",
     "test:phone": "tsx tests/phoneNormalization.test.ts",
+    "test:wizard-progress": "tsx tests/orderWizardProgress.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
