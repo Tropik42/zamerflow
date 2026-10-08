@@ -43,12 +43,12 @@ assert.deepEqual(getOrderWizardProgress(stepsWithoutPayment, "comment"), { curre
 assert.equal(getOrderWizardProgress(stepsWithoutPayment, "paymentBy"), undefined);
 
 assert.equal(
-  formatOrderWizardQuestion(stepsWithPayment, "measureDate", "Дата замера."),
-  "Шаг 4 из 9\nДата замера."
+  formatOrderWizardQuestion(stepsWithPayment, "measureDate", 'Дата замера? Пример: "18 октября" или "18.10.2026".'),
+  'Шаг 4 из 9\nДата замера? Пример: "18 октября" или "18.10.2026".'
 );
 assert.equal(
-  formatOrderWizardQuestion(stepsWithoutPayment, "measureDate", "Дата замера."),
-  "Шаг 4 из 8\nДата замера."
+  formatOrderWizardQuestion(stepsWithoutPayment, "measureDate", 'Дата замера? Пример: "18 октября" или "18.10.2026".'),
+  'Шаг 4 из 8\nДата замера? Пример: "18 октября" или "18.10.2026".'
 );
 
 assert.equal(

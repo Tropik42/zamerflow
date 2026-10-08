@@ -22,6 +22,7 @@ const baseDraft: OrderDraft = {
 
 const formattedCard = formatOrderCard(baseDraft);
 
+assert.match(formattedCard, /^\*На 14 июля\*$/m);
 assert.match(formattedCard, /^менеджер: \+7-999-123-45-67 Олег$/m);
 assert.doesNotMatch(formattedCard, /менеджер: Олег, \+7-999-123-45-67/);
 assert.match(formattedCard, /Стартовая стоимость \*от 2,500₽\*\./);
@@ -103,3 +104,28 @@ const autoAddedSnapshotCard = formatOrderCard({
 });
 
 assert.match(autoAddedSnapshotCard, /Лифтовой холл \+ подъезд \+ паркинг 1000₽/);
+
+const regularDateWithTimeCard = formatOrderCard({
+  ...baseDraft,
+  measureDate: "18 октября",
+  measureTime: "после 16:00"
+});
+
+assert.match(regularDateWithTimeCard, /^\*На 18 октября\* после 16:00 ❗$/m);
+
+const negotiatedDateCard = formatOrderCard({
+  ...baseDraft,
+  measureDate: "По договорённости"
+});
+
+assert.match(negotiatedDateCard, /^\*По договорённости\*$/m);
+assert.doesNotMatch(negotiatedDateCard, /На По договорённости/);
+
+const negotiatedDateWithTimeCard = formatOrderCard({
+  ...baseDraft,
+  measureDate: "По договорённости",
+  measureTime: "после 16:00"
+});
+
+assert.match(negotiatedDateWithTimeCard, /^\*По договорённости\* после 16:00 ❗$/m);
+assert.doesNotMatch(negotiatedDateWithTimeCard, /На По договорённости/);

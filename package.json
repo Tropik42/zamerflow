@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "test:measure-date": "tsx tests/measureDate.test.ts",
     "test:order-card": "tsx tests/formatOrderCard.test.ts",
     "test:phone": "tsx tests/phoneNormalization.test.ts",
     "test:wizard-progress": "tsx tests/orderWizardProgress.test.ts",

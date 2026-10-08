@@ -17,6 +17,12 @@ import {
   measurePaymentOptions
 } from "./measurePaymentOptions.js";
 import {
+  applyMeasureDateToSession,
+  measureDateQuestionText,
+  negotiatedMeasureDateText,
+  normalizeMeasureDateInput
+} from "./measureDate.js";
+import {
   getMeasureServiceItemByKey,
   isMeasureServiceItemType,
   measureServiceItems
@@ -70,6 +76,11 @@ const clientContactQuestionText = [
   "Контакт клиента или представителя — номер телефона, имя.",
   "Например: +79859651223 Виктория"
 ].join("\n");
+const invalidMeasureDateText = [
+  "Дата некорректна. Проверьте день, месяц и год.",
+  'Примеры корректного ввода: "18 октября", "18.10.2026" или "29.02.2028".',
+  `Если дата пока не определена, выберите «${negotiatedMeasureDateText}».`
+].join(" ");
 
 const sessions = new Map<string, WizardSession>();
 const pendingAuthTelegramUserIds = new Set<string>();
@@ -356,6 +367,18 @@ export function registerOrderWizard(
   bot.action("cancel_order", async (ctx) => {
     await safeAnswerCbQuery(ctx);
     await cancelOrder(ctx);
+  });
+
+  bot.action("measure_date:negotiated", async (ctx) => {
+    await safeAnswerCbQuery(ctx);
+
+    const session = getSession(ctx);
+    if (!session || session.step !== "measureDate") {
+      await ctx.reply("Черновик не найден. Начните новую заявку через /new.", mainKeyboardForChat(ctx));
+      return;
+    }
+
+    await acceptMeasureDate(ctx, session, negotiatedMeasureDateText);
   });
 
   bot.action("skip_optional", async (ctx) => {
@@ -818,12 +841,10 @@ async function handleText(
 
       session.draft.metro = text;
       session.step = "measureDate";
-      await askMainQuestion(ctx, session, "Дата замера.");
+      await askMeasureDate(ctx, session);
       return;
     case "measureDate":
-      session.draft.measureDate = text;
-      session.step = "measureTime";
-      await askMeasureTime(ctx, session);
+      await handleMeasureDate(ctx, session, text);
       return;
     case "measureTime":
       if (text === skipText) {
@@ -1050,6 +1071,48 @@ async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): P
   await ctx.reply(mainQuestionText(session, "Кто оплачивает замер?"), paymentKeyboard());
 }
 
+async function handleMeasureDate(
+  ctx: Context,
+  session: WizardSession,
+  text: string
+): Promise<void> {
+  if (text === negotiatedMeasureDateText) {
+    await acceptMeasureDate(ctx, session, negotiatedMeasureDateText);
+    return;
+  }
+
+  const result = normalizeMeasureDateInput(text);
+
+  if (result.status === "rejected") {
+    await askMeasureDate(ctx, session, invalidMeasureDateText);
+    return;
+  }
+
+  await acceptMeasureDate(ctx, session, result.value);
+}
+
+async function acceptMeasureDate(
+  ctx: Context,
+  session: WizardSession,
+  measureDate: string
+): Promise<void> {
+  applyMeasureDateToSession(session, measureDate);
+  await askMeasureTime(ctx, session);
+}
+
+async function askMeasureDate(
+  ctx: Context,
+  session: WizardSession,
+  prefixText?: string
+): Promise<void> {
+  await replyMeasureDateQuestion(
+    ctx,
+    [prefixText, mainQuestionText(session, measureDateQuestionText)]
+      .filter((value): value is string => Boolean(value))
+      .join("\n\n")
+  );
+}
+
 async function askMeasureTime(ctx: Context, session: WizardSession): Promise<void> {
   await askMainQuestion(
     ctx,
@@ -1151,12 +1214,20 @@ function skipKeyboard() {
   return Markup.keyboard([[skipText], [cancelText]]).resize();
 }
 
+function measureDateKeyboard() {
+  return Markup.keyboard([[negotiatedMeasureDateText], [cancelText]]).resize();
+}
+
 /**
  * Создаёт inline-клавиатуру для необязательного текстового шага.
  * @returns {ReturnType<typeof Markup.inlineKeyboard>} Inline-клавиатура пропуска и отмены.
  */
 function optionalStepKeyboard() {
   return Markup.inlineKeyboard([[Markup.button.callback(skipText, "skip_optional")]]);
+}
+
+function measureDateInlineKeyboard() {
+  return Markup.inlineKeyboard([[Markup.button.callback(negotiatedMeasureDateText, "measure_date:negotiated")]]);
 }
 
 /**
@@ -1404,6 +1475,19 @@ async function replyQuestion(ctx: Context, text: string, canSkip = false): Promi
   }
 }
 
+async function replyMeasureDateQuestion(ctx: Context, text: string): Promise<void> {
+  if (isPrivateChat(ctx)) {
+    await ctx.reply(text, measureDateKeyboard());
+    return;
+  }
+
+  await ctx.reply(
+    `${text}\n\nОтветьте на это сообщение или нажмите «${negotiatedMeasureDateText}». Для отмены создания всей заявки наберите команду /cancel.`,
+    Markup.forceReply().selective()
+  );
+  await ctx.reply("Можно выбрать без даты:", measureDateInlineKeyboard());
+}
+
 function mainQuestionText(
   session: WizardSession,
   questionText: string
@@ -1488,7 +1572,7 @@ async function skipOptionalStep(
     case "metro":
       session.draft.metro = undefined;
       session.step = "measureDate";
-      await askMainQuestion(ctx, session, "Дата замера.");
+      await askMeasureDate(ctx, session);
       return;
     case "measureTime":
       session.draft.measureTime = undefined;

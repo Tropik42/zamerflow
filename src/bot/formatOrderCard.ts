@@ -1,5 +1,6 @@
 import type { OrderDraft } from "../types/order.js";
 import { formatMeasurePaymentForCard } from "./measurePaymentOptions.js";
+import { negotiatedMeasureDateText } from "./measureDate.js";
 import {
   formatMeasureServiceItemForCardFirst,
   formatMeasureServiceItemForCardList
@@ -57,6 +58,10 @@ function paymentText(draft: OrderDraft): string {
 function titleText(draft: OrderDraft): string {
   const dateText = valueOrDash(draft.measureDate);
   const timeText = draft.measureTime?.trim();
+
+  if (dateText === negotiatedMeasureDateText) {
+    return timeText ? `*${dateText}* ${timeText} ❗` : `*${dateText}*`;
+  }
 
   return timeText ? `*На ${dateText}* ${timeText} ❗` : `*На ${dateText}*`;
 }
