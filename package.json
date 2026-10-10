@@ -9,6 +9,7 @@
     "test:order-card": "tsx tests/formatOrderCard.test.ts",
     "test:phone": "tsx tests/phoneNormalization.test.ts",
     "test:workflow-db": "tsx tests/workflowDb.test.ts",
+    "test:workflow-service": "tsx tests/workflowService.test.ts",
     "test:wizard-progress": "tsx tests/orderWizardProgress.test.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -174,9 +174,11 @@ Telegram bot / Admin routes
 
 Часть бизнес-логики ещё находится в Telegram wizard и admin routes. В дальнейшем её стоит постепенно выносить в services, не ломая MVP.
 
-### Целевое состояние workflow согласования в рамках #6
+### Workflow согласования в рамках #6
 
-Этот раздел описывает принятое planned-состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. `OrderWorkflowService`, workflow adapters, Telegram callbacks и post-commit уведомления ещё не реализованы.
+Этот раздел описывает принятое состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`.
+
+Workflow adapters, Telegram callbacks, post-commit Telegram delivery и переключение создания новых заявок на `awaiting_coordination` ещё не реализованы.
 
 Целевая граница для согласования и переноса заявок:
 
@@ -214,6 +216,8 @@ Telegram в этой модели остаётся adapter/orchestrator:
 
 `OrderWorkflowService` не должен напрямую вызывать Telegram API и не должен зависеть от Telegraf `ctx`, callback query или конкретного `DISPATCH_CHAT_ID`.
 
+Для пересборки карточки при переносе используется нейтральный formatter поверх persisted `orders` и `order_items` snapshot-данных. Bot-layer сохраняет существующий API через wrapper/re-export, но service-layer не импортирует `src/bot/*`.
+
 ## Основные директории
 
 Ожидаемая структура проекта:
@@ -225,6 +229,7 @@ src/
   bot/
   admin/
   db/
+  services/
   types/
 migrations/
 docs/
@@ -256,7 +261,9 @@ Telegram bot layer.
 
 * регистрация команд;
 * wizard создания заявки;
-* форматирование карточки.
+* wrapper/re-export форматирования карточки для существующего Telegram preview.
+
+Чистая логика форматирования карточки находится в service-layer и не зависит от Telegraf.
 
 ### `src/admin/`
 

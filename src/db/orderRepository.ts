@@ -1,10 +1,12 @@
 import type { AppDatabase } from "./db.js";
-import type { AcceptedOrder, OrderItemRecord, OrderRecord } from "../types/order.js";
+import type { AcceptedOrder, OrderItemRecord, OrderRecord, OrderStatusCode } from "../types/order.js";
 
 export interface OrderRepository {
   create(order: AcceptedOrder): number;
   markDispatchNotificationSent(params: MarkDispatchNotificationSentParams): void;
   markDispatchNotificationFailed(params: MarkDispatchNotificationFailedParams): void;
+  updateWorkflowStatus(params: UpdateOrderWorkflowStatusParams): void;
+  updateScheduleAndFormattedCard(params: UpdateOrderScheduleAndFormattedCardParams): void;
   countOrders(): number;
   getOrdersForAdmin(): OrderRecord[];
   getOrderById(orderId: number): OrderRecord | undefined;
@@ -26,6 +28,21 @@ export interface MarkDispatchNotificationFailedParams {
   chatId?: string;
   headerMessageId?: number;
   cardMessageId?: number;
+}
+
+export interface UpdateOrderWorkflowStatusParams {
+  orderId: number;
+  status: OrderStatusCode;
+  modifyDatetime: string;
+}
+
+export interface UpdateOrderScheduleAndFormattedCardParams {
+  orderId: number;
+  status: OrderStatusCode;
+  measureDate: string;
+  measureTime?: string;
+  formattedCardText: string;
+  modifyDatetime: string;
 }
 
 /**
@@ -286,6 +303,25 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     WHERE order_id = @orderId
   `);
 
+  const updateWorkflowStatus = db.prepare(`
+    UPDATE orders
+    SET
+      modify_datetime = @modifyDatetime,
+      status = @status
+    WHERE order_id = @orderId
+  `);
+
+  const updateScheduleAndFormattedCard = db.prepare(`
+    UPDATE orders
+    SET
+      modify_datetime = @modifyDatetime,
+      status = @status,
+      measure_date = @measureDate,
+      measure_time = @measureTime,
+      formatted_card_text = @formattedCardText
+    WHERE order_id = @orderId
+  `);
+
   const selectOrderItems = db.prepare(`
     SELECT
       order_item_id,
@@ -399,6 +435,23 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
         chatId: params.chatId ?? null,
         headerMessageId: params.headerMessageId ?? null,
         cardMessageId: params.cardMessageId ?? null
+      });
+    },
+    updateWorkflowStatus(params) {
+      updateWorkflowStatus.run({
+        orderId: params.orderId,
+        status: params.status,
+        modifyDatetime: params.modifyDatetime
+      });
+    },
+    updateScheduleAndFormattedCard(params) {
+      updateScheduleAndFormattedCard.run({
+        orderId: params.orderId,
+        status: params.status,
+        measureDate: params.measureDate,
+        measureTime: params.measureTime ?? null,
+        formattedCardText: params.formattedCardText,
+        modifyDatetime: params.modifyDatetime
       });
     },
     countOrders() {

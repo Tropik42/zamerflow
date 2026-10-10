@@ -198,17 +198,19 @@ Dispatch notification поля:
 
 `orders.status` остаётся бизнес-статусом заявки, например `accepted`. Dispatch-статус не должен смешиваться с бизнес-статусом заявки.
 
-### DB foundation workflow согласования (#8)
+### Workflow согласования (#8-#9)
 
-После Issue #8 в фактической схеме есть foundation для будущего workflow согласования заявок:
+После Issue #8 в фактической схеме есть foundation для workflow согласования заявок:
 
 * `order_statuses`;
 * `order_status_history`;
 * repository для записи и чтения history events.
 
-Этот foundation пока не меняет runtime создания заявок. Новые заявки всё ещё создаются текущим Telegram flow со статусом `accepted`, а запись `created` в `order_status_history` при реальном создании заявки ещё не выполняется. Переключение новых заявок на `awaiting_coordination` и атомарная запись `order + created history` относятся к последующим задачам workflow.
+После Issue #9 реализован client-agnostic `OrderWorkflowService`, который выполняет `confirmOrder()` и `rescheduleOrder()` через repositories в одной SQLite transaction и пишет `order_status_history`.
 
-`OrderWorkflowService`, Telegram callbacks, reschedule runtime и уведомления менеджеру пока не реализованы.
+Этот workflow foundation пока не меняет runtime создания заявок. Новые заявки всё ещё создаются текущим Telegram flow со статусом `accepted`, а запись `created` в `order_status_history` при реальном создании заявки ещё не выполняется. Переключение новых заявок на `awaiting_coordination` и атомарная запись `order + created history` относятся к последующим задачам workflow.
+
+Telegram callbacks, reschedule runtime в Telegram и конкретная отправка уведомлений менеджеру пока не реализованы.
 
 #### `order_statuses`
 
@@ -314,6 +316,8 @@ rescheduled
 * `order_items` snapshots;
 * DaData snapshot;
 * неизменившиеся поля карточки и правил.
+
+При переносе `formatted_card_text` пересобирается из persisted `orders` и `order_items`, без обращения к текущим справочникам `salons`, `salon_managers` и `salon_required_items`. Поэтому старые snapshot-значения салона, менеджера, тарифов, обязательных позиций и DaData остаются источником правды для карточки.
 
 ### `order_items`
 
