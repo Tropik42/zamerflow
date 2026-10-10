@@ -87,6 +87,26 @@ Dispatch-чат содержит персональные данные из ка
 
 На MVP фотографии не скачиваются приложением, не сохраняются на диск, не сохраняются в SQLite, не отправляются в файловое хранилище и не показываются в админке. В SQLite сохраняется только флаг `orders.has_photos`.
 
+### Planned workflow callbacks в dispatch-чате (#6)
+
+Этот раздел фиксирует принятое security-правило для planned workflow согласования. На момент Issue #7 callback handlers ещё не считаются реализованными.
+
+Workflow callbacks согласования и переноса могут выполняться только из настроенного закрытого:
+
+```text
+DISPATCH_CHAT_ID
+```
+
+На MVP dispatch-чат является trusted closed control surface. Отдельную dispatcher roles model сейчас не добавляем.
+
+Callback data сама по себе не является достаточным доказательством принадлежности действия к заявке. Planned validation для новых workflow-заявок должна использовать сохранённые идентификаторы dispatch-сообщений:
+
+* `dispatch_notification_chat_id`;
+* `dispatch_notification_header_message_id`;
+* при необходимости `dispatch_notification_card_message_id`.
+
+Telegram-specific guard выполняется adapter-слоем до business transition. Business service получает уже проверенный нейтральный actor context и не должен владеть Telegram-specific проверками.
+
 ## DaData keys
 
 `DADATA_API_KEY` и `DADATA_SECRET_KEY` являются секретами.

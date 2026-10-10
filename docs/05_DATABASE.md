@@ -198,6 +198,78 @@ Dispatch notification поля:
 
 `orders.status` остаётся бизнес-статусом заявки, например `accepted`. Dispatch-статус не должен смешиваться с бизнес-статусом заявки.
 
+### Planned DB model для workflow согласования (#6)
+
+Этот раздел описывает целевую схему Issue #6, которая будет реализована последующими coding Issues. На момент Issue #7 эти таблицы и изменения не считаются частью фактической текущей схемы.
+
+#### `order_statuses`
+
+Planned справочник бизнес-статусов заявки:
+
+```text
+order_statuses
+```
+
+Минимальные значения:
+
+```text
+accepted
+awaiting_coordination
+confirmed
+```
+
+Семантика:
+
+* `accepted` остаётся legacy status для уже существующих заявок;
+* старые заявки автоматически не переводятся из `accepted` в новые workflow-статусы;
+* новые заявки после реализации workflow должны создаваться со статусом `awaiting_coordination`;
+* `confirmed` означает, что актуальные дата и время заявки согласованы.
+
+`orders.status TEXT` сохраняется и продолжает хранить business status code. В рамках MVP статус не заменяется integer FK и не требует сложного rebuild таблицы `orders`.
+
+`rescheduled` не является текущим статусом заявки. Перенос является business event, после которого текущий статус снова остаётся `awaiting_coordination`.
+
+#### `order_status_history`
+
+Planned таблица истории workflow:
+
+```text
+order_status_history
+```
+
+Она должна хранить переходы статусов и business events заявки.
+
+Минимальные business events:
+
+```text
+created
+confirmed
+rescheduled
+```
+
+Для переноса история должна сохранять:
+
+* `order_id`;
+* `event_type = rescheduled`;
+* `from_status_code`;
+* `to_status_code`;
+* предыдущие `measure_date` / `measure_time`;
+* новые `measure_date` / `measure_time`;
+* нейтральный источник действия через `actor_source` / `actor_external_id`;
+* время создания события.
+
+`orders.measure_date` и `orders.measure_time` содержат актуальные значения заявки. Предыдущие значения даты и времени сохраняются в `order_status_history`.
+
+Несколько переносов дают несколько последовательных history events `rescheduled`. Остальные snapshot-поля заявки при переносе не меняются:
+
+* салон;
+* менеджер;
+* цены;
+* обязательные позиции;
+* `order_items` snapshots;
+* DaData snapshot;
+* неизменившиеся поля карточки и правил.
+
 ### `order_items`
 
 Позиции заявки.

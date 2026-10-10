@@ -119,7 +119,7 @@ Fastify-сервер отдаёт server-rendered HTML.
 
 ## Слой приложения
 
-Желаемая архитектура:
+Фактическое текущее состояние частично сервисное, но не полностью вынесено из adapters:
 
 ```text
 Telegram bot / Admin UI
@@ -173,6 +173,46 @@ Telegram bot / Admin routes
 ```
 
 Часть бизнес-логики ещё находится в Telegram wizard и admin routes. В дальнейшем её стоит постепенно выносить в services, не ломая MVP.
+
+### Целевое состояние workflow согласования в рамках #6
+
+Этот раздел описывает принятое planned-состояние для Issue #6. На момент Issue #7 `OrderWorkflowService`, новые workflow repositories и новые таблицы ещё не считаются реализованными.
+
+Целевая граница для согласования и переноса заявок:
+
+```text
+Telegram / future MAX / Admin / API
+→ OrderWorkflowService
+→ repositories
+→ SQLite
+```
+
+`OrderWorkflowService` — client-agnostic transactional business workflow. Он отвечает за:
+
+* правила переходов статусов;
+* изменение текущего business state заявки;
+* запись workflow history;
+* выполнение изменений в одной SQLite transaction;
+* возврат нейтрального domain result без Telegram-specific ошибок.
+
+После успешного COMMIT внешние эффекты выполняются вне business transaction:
+
+```text
+application / adapter orchestration
+→ ManagerNotificationService
+→ конкретный delivery adapter
+```
+
+`ManagerNotificationService` — нейтральный post-commit delivery port. Он не входит в SQLite transaction и не должен делать Telegram владельцем business workflow.
+
+Telegram в этой модели остаётся adapter/orchestrator:
+
+* проверяет Telegram-specific context, включая dispatch-чат;
+* собирает ввод пользователя;
+* вызывает business service с нейтральным actor context;
+* после commit выполняет Telegram side effects через соответствующие ports/services.
+
+`OrderWorkflowService` не должен напрямую вызывать Telegram API и не должен зависеть от Telegraf `ctx`, callback query или конкретного `DISPATCH_CHAT_ID`.
 
 ## Основные директории
 

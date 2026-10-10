@@ -108,6 +108,55 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * `single_photo` — одна фотография через `sendPhoto`;
 * `media_group` — от 2 до 5 фотографий через `sendMediaGroup`.
 
+### Planned structured events для workflow согласования (#6)
+
+Эти события являются целевыми для Issues #8-#13. На момент Issue #7 они ещё не считаются реализованными runtime-логами.
+
+Workflow events:
+
+* `order_coordination_confirm_requested`;
+* `order_coordination_confirmed`;
+* `order_coordination_confirm_duplicate`;
+* `order_reschedule_started`;
+* `order_reschedule_cancelled`;
+* `order_rescheduled`.
+
+Manager notification events:
+
+* `manager_notification_sent`;
+* `manager_notification_failed`.
+
+Dispatch edit / side effect events:
+
+* `dispatch_card_updated`;
+* `dispatch_card_update_failed`;
+* `dispatch_header_updated`;
+* `dispatch_header_update_failed`;
+* `dispatch_reschedule_message_sent`;
+* `dispatch_reschedule_message_failed`.
+
+Допустимые безопасные поля для этих событий:
+
+* `order_id`;
+* `from_status`;
+* `to_status`;
+* `actor_source`;
+* `actor_external_id`;
+* `dispatch_chat_id`;
+* `message_id`;
+* `notification_type`;
+* `error_code`.
+
+Для workflow-событий нельзя логировать:
+
+* адрес;
+* телефон;
+* `formatted_card_text`;
+* текст notification;
+* Telegram token;
+* полный Telegram update;
+* другие персональные данные.
+
 В логах не должно быть:
 
 * Telegram bot token;

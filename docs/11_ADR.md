@@ -713,3 +713,99 @@ header
 * `orders.measure_time` остаётся свободным текстом;
 * snapshot `formatted_card_text` для новых заявок будет сохраняться уже в новом формате;
 * старые заявки не меняются, потому что их карточка уже сохранена в `formatted_card_text`.
+
+---
+
+## ADR-021: Client-agnostic workflow согласования заявок
+
+Дата: 2026-10-10
+
+Статус: Accepted
+
+Контекст:
+
+Нужно добавить согласование и перенос заявок с обратной связью менеджеру. После создания заявки менеджеру достаточно получить подтверждение о приёме, а результат согласования или переноса должен приходить отдельным уведомлением.
+
+При этом business workflow не должен принадлежать Telegram. Telegram является текущей точкой входа и delivery adapter, но в будущем те же операции должны быть доступны из других клиентов: Admin UI, MAX, HTTP/API или других adapters.
+
+Решение:
+
+Использовать расширяемую статусную модель с минимальными business statuses:
+
+```text
+accepted
+awaiting_coordination
+confirmed
+```
+
+`accepted` остаётся legacy status уже существующих заявок. Старые заявки автоматически не мигрируют в новый workflow, потому что их фактическое состояние неизвестно и у старых dispatch-сообщений нет workflow controls.
+
+Перенос является событием:
+
+```text
+rescheduled
+```
+
+`rescheduled` не является текущим status заявки. После переноса заявка снова находится в `awaiting_coordination`, пока актуальные дата и время не будут согласованы.
+
+Историю workflow хранить отдельно в:
+
+```text
+order_status_history
+```
+
+Минимальные business events:
+
+```text
+created
+confirmed
+rescheduled
+```
+
+`orders.measure_date` и `orders.measure_time` содержат актуальное состояние заявки. Previous date/time при переносе сохраняются в `order_status_history`. Несколько переносов дают несколько последовательных events `rescheduled`. Остальные snapshot-поля заявки при переносе не меняются.
+
+Business transitions принадлежат:
+
+```text
+OrderWorkflowService
+```
+
+`OrderWorkflowService` является client-agnostic transactional business service. Он управляет transition rules, изменяет текущий business state, пишет workflow history и выполняет изменения в одной SQLite transaction. Telegram handlers не изменяют business status напрямую.
+
+Telegram является adapter/orchestrator: проверяет Telegram-specific context, собирает ввод, вызывает `OrderWorkflowService` с нейтральным actor context и выполняет post-commit Telegram side effects через отдельные ports/services.
+
+Граница notification:
+
+```text
+OrderWorkflowService
+= transactional business workflow
+
+COMMIT
+
+application / adapter orchestration
+→ ManagerNotificationService
+```
+
+`ManagerNotificationService` является neutral post-commit delivery port. External notification delivery не входит в SQLite transaction. Ошибка notification после commit не откатывает business transition и не создаёт повторный business event.
+
+Существующая dispatch-card при переносе редактируется вместо отправки новой полной карточки. Telegram post-commit failures, включая ошибку редактирования карточки или header, не откатывают business operation.
+
+Незавершённая reschedule session может храниться in-memory как MVP-компромисс. До successful `rescheduleOrder()` и commit business state заявки не меняется, поэтому потеря незавершённой session при restart не повреждает сохранённые данные.
+
+Последствия:
+
+Плюсы:
+
+* business workflow не привязан к Telegram;
+* позже можно подключить Admin, MAX, API и другие adapters без переноса бизнес-логики;
+* история переносов сохраняется отдельно от текущего состояния заявки;
+* transaction boundaries понятны: workflow внутри SQLite transaction, delivery после commit;
+* Telegram failure не ломает business state.
+
+Минусы и компромиссы:
+
+* появляются новые таблицы и service layer;
+* нужно поддерживать workflow history;
+* Telegram delivery может завершиться ошибкой уже после successful DB commit;
+* in-memory reschedule session теряется при restart;
+* retry queue для notification delivery пока отсутствует.
