@@ -196,9 +196,9 @@ Dispatch notification поля:
 * `dispatch_notification_attempts` — количество попыток dispatch-отправки;
 * `dispatch_notification_last_attempt_at` — время последней попытки.
 
-`orders.status` остаётся бизнес-статусом заявки, например `accepted`. Dispatch-статус не должен смешиваться с бизнес-статусом заявки.
+`orders.status` остаётся бизнес-статусом заявки, например `awaiting_coordination` для новых заявок. Dispatch-статус не должен смешиваться с бизнес-статусом заявки.
 
-### Workflow согласования (#8-#9)
+### Workflow согласования (#8-#10)
 
 После Issue #8 в фактической схеме есть foundation для workflow согласования заявок:
 
@@ -208,9 +208,9 @@ Dispatch notification поля:
 
 После Issue #9 реализован client-agnostic `OrderWorkflowService`, который выполняет `confirmOrder()` и `rescheduleOrder()` через repositories в одной SQLite transaction и пишет `order_status_history`.
 
-Этот workflow foundation пока не меняет runtime создания заявок. Новые заявки всё ещё создаются текущим Telegram flow со статусом `accepted`, а запись `created` в `order_status_history` при реальном создании заявки ещё не выполняется. Переключение новых заявок на `awaiting_coordination` и атомарная запись `order + created history` относятся к последующим задачам workflow.
+После Issue #10 runtime создания заявок включён в workflow: новые заявки из Telegram `/new` создаются со статусом `awaiting_coordination`, а в `order_status_history` атомарно записывается initial event `created`.
 
-Telegram callbacks, reschedule runtime в Telegram и конкретная отправка уведомлений менеджеру пока не реализованы.
+Telegram callbacks confirm/reschedule, reschedule runtime в Telegram, post-commit side effects после confirm/reschedule и конкретная Telegram-реализация `ManagerNotificationService` пока не реализованы.
 
 #### `order_statuses`
 
@@ -242,8 +242,8 @@ confirmed
 
 * `accepted` остаётся legacy status для уже существующих заявок;
 * старые заявки автоматически не переводятся из `accepted` в новые workflow-статусы;
-* текущий runtime создания заявок пока продолжает писать `accepted`;
-* новые заявки после реализации Issue #10 должны создаваться со статусом `awaiting_coordination`;
+* текущий runtime создания новых заявок пишет `awaiting_coordination`;
+* initial creation event записывается в `order_status_history`;
 * `confirmed` означает, что актуальные дата и время заявки согласованы.
 
 `orders.status TEXT` сохраняется и продолжает хранить business status code. В рамках MVP статус не заменяется integer FK и не требует сложного rebuild таблицы `orders`.
@@ -304,6 +304,15 @@ rescheduled
 * новые `measure_date` / `measure_time`;
 * нейтральный источник действия через `actor_source` / `actor_external_id`;
 * время создания события.
+
+Для создания новой заявки runtime записывает:
+
+* `event_type = created`;
+* `from_status_code = NULL`;
+* `to_status_code = awaiting_coordination`;
+* `new_measure_date` / `new_measure_time`;
+* `actor_source = telegram`;
+* `actor_external_id = telegram_user_id` пользователя, который создал заявку.
 
 `orders.measure_date` и `orders.measure_time` содержат актуальные значения заявки. Предыдущие значения даты и времени сохраняются в `order_status_history`.
 

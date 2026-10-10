@@ -133,13 +133,15 @@ Telegram bot / Admin UI
 ```text
 Telegram bot
 → OrderSubmissionService
-→ OrderRepository
+→ OrderRepository + OrderStatusHistoryRepository
 → SQLite
 
 OrderSubmissionService
 → DispatchNotificationService
 → Telegram group chat from DISPATCH_CHAT_ID
 ```
+
+`OrderSubmissionService` создаёт новую заявку, её позиции и initial workflow history event `created` в одной SQLite transaction. Dispatch-отправка и ответ менеджеру выполняются только после successful commit.
 
 Временные фотографии заявки проходят отдельным ephemeral-потоком:
 
@@ -176,9 +178,9 @@ Telegram bot / Admin routes
 
 ### Workflow согласования в рамках #6
 
-Этот раздел описывает принятое состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`.
+Этот раздел описывает текущее состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`. После Issue #10 создание новых Telegram-заявок включено в workflow.
 
-Workflow adapters, Telegram callbacks, post-commit Telegram delivery и переключение создания новых заявок на `awaiting_coordination` ещё не реализованы.
+Новые заявки из `/new` создаются со статусом `awaiting_coordination` и получают initial history event `created`. Служебный dispatch-header получает workflow buttons, но Telegram callbacks, reschedule-session, post-commit side effects после confirm/reschedule и Telegram implementation `ManagerNotificationService` ещё не реализованы.
 
 Целевая граница для согласования и переноса заявок:
 

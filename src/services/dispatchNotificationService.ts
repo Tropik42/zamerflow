@@ -58,7 +58,8 @@ export function createDispatchNotificationService(
       try {
         const headerMessage = await bot.telegram.sendMessage(
           params.chatId,
-          formatDispatchHeader(params)
+          formatDispatchHeader(params),
+          createDispatchHeaderKeyboard(params.orderId)
         );
 
         result.headerMessageId = headerMessage.message_id;
@@ -164,7 +165,7 @@ function photoSendMode(photos: readonly DraftPhoto[]): DispatchPhotoSendMode {
   return photos.length === 1 ? "single_photo" : "media_group";
 }
 
-function formatDispatchHeader(params: SendOrderPackageParams): string {
+export function formatDispatchHeader(params: SendOrderPackageParams): string {
   return [
     "О Повелитель, поступила новая заявка!",
     "",
@@ -173,11 +174,37 @@ function formatDispatchHeader(params: SendOrderPackageParams): string {
     `Салон: ${valueOrDash(params.salonName)}`,
     `Менеджер: ${valueOrDash(params.managerName)}`,
     `Дата замера: ${valueOrDash(params.measureDate)}`,
-    "Статус: принята менеджером",
+    "Статус: ожидает согласования",
     `Фотографии: ${params.photos.length > 0 ? params.photos.length : "нет"}`,
     "",
     ...formatAddressBlock(params)
   ].join("\n");
+}
+
+export function createDispatchHeaderKeyboard(orderId: number) {
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "✅ Согласовано",
+            callback_data: createOrderWorkflowCallbackData("confirm", orderId)
+          },
+          {
+            text: "📅 Перенесено",
+            callback_data: createOrderWorkflowCallbackData("reschedule", orderId)
+          }
+        ]
+      ]
+    }
+  };
+}
+
+export function createOrderWorkflowCallbackData(
+  action: "confirm" | "reschedule",
+  orderId: number
+): string {
+  return `order:${action}:${orderId}`;
 }
 
 function valueOrDash(value: string | undefined): string {

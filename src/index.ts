@@ -8,6 +8,7 @@ import { createDatabase } from "./db/db.js";
 import { createManagerAuthCodeRepository } from "./db/managerAuthCodeRepository.js";
 import { runMigrations } from "./db/migrations.js";
 import { createOrderRepository } from "./db/orderRepository.js";
+import { createOrderStatusHistoryRepository } from "./db/orderStatusHistoryRepository.js";
 import { createSalonManagerRepository } from "./db/salonManagerRepository.js";
 import { createSalonRequiredItemRepository } from "./db/salonRequiredItemRepository.js";
 import { createSalonRepository } from "./db/salonRepository.js";
@@ -25,6 +26,7 @@ const db = createDatabase(config.databasePath);
 runMigrations(db);
 
 const orderRepository = createOrderRepository(db);
+const orderStatusHistoryRepository = createOrderStatusHistoryRepository(db);
 const salonRepository = createSalonRepository(db);
 const managerRepository = createSalonManagerRepository(db);
 const salonRequiredItemRepository = createSalonRequiredItemRepository(db);
@@ -44,7 +46,9 @@ const addressGeoService = createAddressGeoService({
 const bot = config.botEnabled
   ? createBot(
       config.botToken,
+      db,
       orderRepository,
+      orderStatusHistoryRepository,
       salonRepository,
       salonRequiredItemRepository,
       telegramUserRepository,

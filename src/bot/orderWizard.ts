@@ -8,6 +8,10 @@ import type { AddressGeoService } from "../services/addressGeoService.js";
 import type { OrderSubmissionService } from "../services/orderSubmissionService.js";
 import { formatOrderCard } from "./formatOrderCard.js";
 import {
+  formatOrderSubmittedDispatchFailureMessage,
+  formatOrderSubmittedMessage
+} from "./orderSubmissionMessages.js";
+import {
   createMainOrderWizardSteps,
   formatOrderWizardQuestion
 } from "./orderWizardProgress.js";
@@ -36,10 +40,10 @@ import {
 } from "../services/phoneNormalization.js";
 import type { AuthenticatedUser } from "../types/auth.js";
 import type {
-  AcceptedOrder,
   OrderDraft,
   PaymentBy,
   ServiceItemType,
+  SubmittedOrder,
   WizardSession
 } from "../types/order.js";
 
@@ -299,9 +303,9 @@ export function registerOrderWizard(
     session.isSubmitting = true;
 
     const formattedCardText = formatOrderCard(session.draft);
-    const order: AcceptedOrder = {
+    const order: SubmittedOrder = {
       ...session.draft,
-      status: "accepted",
+      status: "awaiting_coordination",
       address: session.draft.address,
       formattedCardText,
       hasPhotos: photosForSubmission.length > 0,
@@ -316,7 +320,7 @@ export function registerOrderWizard(
     }
 
     try {
-      const result = await orderSubmissionService.submitAcceptedOrder({
+      const result = await orderSubmissionService.submitOrder({
         order,
         photos: photosForSubmission,
         sourceChatId: ctx.chat?.id
@@ -327,15 +331,12 @@ export function registerOrderWizard(
       session.photos = [];
 
       if (result.dispatchNotificationStatus === "sent") {
-        await ctx.reply(
-          `✅ Заявка #${result.orderId} принята и отправлена в рабочий чат.`,
-          mainKeyboardForChat(ctx)
-        );
+        await ctx.reply(formatOrderSubmittedMessage(result.orderId), mainKeyboardForChat(ctx));
         return;
       }
 
       await ctx.reply(
-        `⚠️ Заявка #${result.orderId} сохранена, но не удалось полностью отправить её в рабочий чат.\nФотографии временно не сохраняются, поэтому для их повторной отправки может потребоваться создать заявку заново или отправить фото вручную.`,
+        formatOrderSubmittedDispatchFailureMessage(result.orderId),
         mainKeyboardForChat(ctx)
       );
     } catch {

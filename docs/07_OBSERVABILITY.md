@@ -87,7 +87,7 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * `order_photo_step_skipped`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
 * `order_photo_step_completed`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
 * `order_confirmed_with_photos`: `telegram_user_id`, `source_chat_id`, `salon_id`, `manager_id`, `photo_count`;
-* `order_created`: `order_id`, `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `measure_date`, `measure_time`, `address_beltway_hit`, `address_beltway_distance_km`, `address_geo_source`;
+* `order_created`: `order_id`, `status`, `telegram_user_id`, `chat_id`, `salon_id`, `salon_name`, `manager_id`, `manager_name`, `measure_date`, `measure_time`, `address_beltway_hit`, `address_beltway_distance_km`, `address_geo_source`, `photo_count`;
 * `order_save_failed`: `telegram_user_id`, `chat_id`, `salon_id`, `manager_id`, `message`.
 
 События dispatch-отправки:
@@ -110,7 +110,7 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 
 ### Planned structured events для workflow согласования (#6)
 
-Эти события являются целевыми для Issues #8-#13. На момент Issue #7 они ещё не считаются реализованными runtime-логами.
+Эти события являются целевыми для Issues #11-#13. На момент Issue #10 creation workflow уже пишет `order_created` со статусом `awaiting_coordination`, но confirm/reschedule runtime-логи ещё не считаются реализованными.
 
 Workflow events:
 

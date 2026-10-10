@@ -1,29 +1,33 @@
+import type { AppDatabase } from "../db/db.js";
 import type { OrderRepository } from "../db/orderRepository.js";
+import type { OrderStatusHistoryRepository } from "../db/orderStatusHistoryRepository.js";
 import { logError, logInfo, logWarn } from "../logger.js";
-import type { AcceptedOrder, DispatchNotificationStatus, DraftPhoto } from "../types/order.js";
+import type { DispatchNotificationStatus, DraftPhoto, SubmittedOrder } from "../types/order.js";
 import type {
   DispatchNotificationErrorCode,
   DispatchNotificationService
 } from "./dispatchNotificationService.js";
 
 export interface OrderSubmissionService {
-  submitAcceptedOrder(params: SubmitAcceptedOrderParams): Promise<SubmitAcceptedOrderResult>;
+  submitOrder(params: SubmitOrderParams): Promise<SubmitOrderResult>;
 }
 
-export interface SubmitAcceptedOrderParams {
-  order: AcceptedOrder;
+export interface SubmitOrderParams {
+  order: SubmittedOrder;
   photos: readonly DraftPhoto[];
   sourceChatId?: number | string;
 }
 
-export interface SubmitAcceptedOrderResult {
+export interface SubmitOrderResult {
   orderId: number;
   dispatchNotificationStatus: Exclude<DispatchNotificationStatus, "not_sent">;
   dispatchNotificationError?: DispatchNotificationErrorCode;
 }
 
 export interface CreateOrderSubmissionServiceParams {
+  db: AppDatabase;
   orderRepository: OrderRepository;
+  orderStatusHistoryRepository: OrderStatusHistoryRepository;
   dispatchNotificationService: DispatchNotificationService;
   dispatchChatId?: string;
 }
@@ -31,16 +35,41 @@ export interface CreateOrderSubmissionServiceParams {
 export function createOrderSubmissionService(
   params: CreateOrderSubmissionServiceParams
 ): OrderSubmissionService {
-  const { orderRepository, dispatchNotificationService, dispatchChatId } = params;
+  const {
+    db,
+    orderRepository,
+    orderStatusHistoryRepository,
+    dispatchNotificationService,
+    dispatchChatId
+  } = params;
+
+  const createOrderWithInitialHistory = db.transaction((order: SubmittedOrder) => {
+    const orderId = orderRepository.create(order);
+    const now = new Date().toISOString();
+
+    orderStatusHistoryRepository.recordEvent({
+      orderId,
+      eventType: "created",
+      toStatusCode: "awaiting_coordination",
+      newMeasureDate: order.measureDate,
+      newMeasureTime: order.measureTime,
+      actorSource: "telegram",
+      actorExternalId: order.telegramUserId,
+      createDatetime: now
+    });
+
+    return orderId;
+  });
 
   return {
-    async submitAcceptedOrder({ order, photos, sourceChatId }) {
+    async submitOrder({ order, photos, sourceChatId }) {
       let orderId: number;
 
       try {
-        orderId = orderRepository.create(order);
+        orderId = createOrderWithInitialHistory(order);
         logInfo("order_created", {
           order_id: orderId,
+          status: order.status,
           telegram_user_id: order.telegramUserId,
           chat_id: sourceChatId,
           salon_id: order.salonId,

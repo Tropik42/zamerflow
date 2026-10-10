@@ -1,6 +1,8 @@
 import { Telegraf, type Context } from "telegraf";
+import type { AppDatabase } from "../db/db.js";
 import type { ManagerAuthCodeRepository } from "../db/managerAuthCodeRepository.js";
 import type { OrderRepository } from "../db/orderRepository.js";
+import type { OrderStatusHistoryRepository } from "../db/orderStatusHistoryRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
 import type { SalonRepository } from "../db/salonRepository.js";
 import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
@@ -13,13 +15,17 @@ import { registerOrderWizard } from "./orderWizard.js";
 /**
  * Создаёт и настраивает экземпляр Telegram-бота.
  * @param {string} botToken Токен Telegram-бота.
+ * @param {AppDatabase} db Открытое подключение SQLite.
  * @param {OrderRepository} orderRepository Репозиторий заявок.
+ * @param {OrderStatusHistoryRepository} orderStatusHistoryRepository Репозиторий workflow history.
  * @param {SalonRepository} salonRepository Репозиторий справочника салонов.
  * @returns {Telegraf<Context>} Настроенный экземпляр Telegraf.
  */
 export function createBot(
   botToken: string,
+  db: AppDatabase,
   orderRepository: OrderRepository,
+  orderStatusHistoryRepository: OrderStatusHistoryRepository,
   salonRepository: SalonRepository,
   salonRequiredItemRepository: SalonRequiredItemRepository,
   telegramUserRepository: TelegramUserRepository,
@@ -41,7 +47,9 @@ export function createBot(
 
   const dispatchNotificationService = createDispatchNotificationService(bot);
   const orderSubmissionService = createOrderSubmissionService({
+    db,
     orderRepository,
+    orderStatusHistoryRepository,
     dispatchNotificationService,
     dispatchChatId
   });

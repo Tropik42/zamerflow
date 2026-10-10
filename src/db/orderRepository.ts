@@ -1,8 +1,8 @@
 import type { AppDatabase } from "./db.js";
-import type { AcceptedOrder, OrderItemRecord, OrderRecord, OrderStatusCode } from "../types/order.js";
+import type { OrderItemRecord, OrderRecord, OrderStatusCode, SubmittedOrder } from "../types/order.js";
 
 export interface OrderRepository {
-  create(order: AcceptedOrder): number;
+  create(order: SubmittedOrder): number;
   markDispatchNotificationSent(params: MarkDispatchNotificationSentParams): void;
   markDispatchNotificationFailed(params: MarkDispatchNotificationFailedParams): void;
   updateWorkflowStatus(params: UpdateOrderWorkflowStatusParams): void;
@@ -343,7 +343,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     ORDER BY sort_order ASC, order_item_id ASC
   `);
 
-  const createOrderWithItems = db.transaction((order: AcceptedOrder) => {
+  const createOrderWithItems = db.transaction((order: SubmittedOrder) => {
     const now = new Date().toISOString();
 
     if (order.telegramUserId) {

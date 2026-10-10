@@ -140,8 +140,8 @@ export interface OrderDraft {
   comment?: string;
 }
 
-export interface AcceptedOrder {
-  status: "accepted";
+export interface SubmittedOrder {
+  status: "awaiting_coordination";
   salonId?: number;
   managerId?: number;
   salonNameSnapshot?: string;
