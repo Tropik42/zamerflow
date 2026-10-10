@@ -9,8 +9,12 @@ import type { TelegramUserRepository } from "../db/telegramUserRepository.js";
 import type { AddressGeoService } from "../services/addressGeoService.js";
 import { createDispatchNotificationService } from "../services/dispatchNotificationService.js";
 import { createOrderSubmissionService } from "../services/orderSubmissionService.js";
+import { createOrderWorkflowService } from "../services/orderWorkflowService.js";
 import { safeErrorMessage } from "./errorLogging.js";
+import { registerOrderWorkflowHandlers } from "./orderWorkflowHandlers.js";
 import { registerOrderWizard } from "./orderWizard.js";
+import { createTelegramManagerNotificationService } from "./telegramManagerNotificationService.js";
+import { createTelegramWorkflowHeaderService } from "./telegramWorkflowHeaderService.js";
 
 /**
  * Создаёт и настраивает экземпляр Telegram-бота.
@@ -46,6 +50,13 @@ export function createBot(
   });
 
   const dispatchNotificationService = createDispatchNotificationService(bot);
+  const orderWorkflowService = createOrderWorkflowService({
+    db,
+    orderRepository,
+    orderStatusHistoryRepository
+  });
+  const managerNotificationService = createTelegramManagerNotificationService(bot);
+  const workflowHeaderUpdateService = createTelegramWorkflowHeaderService(bot);
   const orderSubmissionService = createOrderSubmissionService({
     db,
     orderRepository,
@@ -63,6 +74,14 @@ export function createBot(
     managerAuthCodeRepository,
     addressGeoService
   );
+  registerOrderWorkflowHandlers({
+    bot,
+    orderRepository,
+    orderWorkflowService,
+    managerNotificationService,
+    workflowHeaderUpdateService,
+    dispatchChatId
+  });
 
   return bot;
 }

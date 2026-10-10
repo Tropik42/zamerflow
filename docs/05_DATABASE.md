@@ -210,7 +210,9 @@ Dispatch notification поля:
 
 После Issue #10 runtime создания заявок включён в workflow: новые заявки из Telegram `/new` создаются со статусом `awaiting_coordination`, а в `order_status_history` атомарно записывается initial event `created`.
 
-Telegram callbacks confirm/reschedule, reschedule runtime в Telegram, post-commit side effects после confirm/reschedule и конкретная Telegram-реализация `ManagerNotificationService` пока не реализованы.
+После Issue #11 Telegram callback `order:confirm:<orderId>` подключён к `OrderWorkflowService.confirmOrder()`. Успешное согласование переводит заявку в `confirmed` и записывает history event `confirmed` внутри transaction. Telegram notification менеджеру и обновление dispatch header выполняются после commit и не меняют схему БД.
+
+Telegram callback/session для переноса, reschedule runtime в Telegram и post-commit side effects переноса пока не реализованы.
 
 #### `order_statuses`
 
@@ -313,6 +315,14 @@ rescheduled
 * `new_measure_date` / `new_measure_time`;
 * `actor_source = telegram`;
 * `actor_external_id = telegram_user_id` пользователя, который создал заявку.
+
+Для согласования заявки runtime записывает:
+
+* `event_type = confirmed`;
+* `from_status_code = awaiting_coordination`;
+* `to_status_code = confirmed`;
+* `actor_source = telegram`;
+* `actor_external_id = Telegram user id` пользователя, который нажал кнопку согласования в dispatch-чате.
 
 `orders.measure_date` и `orders.measure_time` содержат актуальные значения заявки. Предыдущие значения даты и времени сохраняются в `order_status_history`.
 

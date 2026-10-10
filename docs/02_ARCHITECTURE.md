@@ -178,9 +178,11 @@ Telegram bot / Admin routes
 
 ### Workflow согласования в рамках #6
 
-Этот раздел описывает текущее состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`. После Issue #10 создание новых Telegram-заявок включено в workflow.
+Этот раздел описывает текущее состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`. После Issue #10 создание новых Telegram-заявок включено в workflow. После Issue #11 confirm callback подключён в Telegram runtime.
 
-Новые заявки из `/new` создаются со статусом `awaiting_coordination` и получают initial history event `created`. Служебный dispatch-header получает workflow buttons, но Telegram callbacks, reschedule-session, post-commit side effects после confirm/reschedule и Telegram implementation `ManagerNotificationService` ещё не реализованы.
+Новые заявки из `/new` создаются со статусом `awaiting_coordination` и получают initial history event `created`. Служебный dispatch-header получает workflow buttons. Callback `order:confirm:<orderId>` работает только из настроенного `DISPATCH_CHAT_ID`, сверяет сохранённые dispatch chat/header ids, вызывает `OrderWorkflowService.confirmOrder()`, после commit уведомляет менеджера через Telegram implementation `ManagerNotificationService` и редактирует существующий dispatch-header на статус `согласовано` без workflow-кнопок.
+
+Telegram implementation `ManagerNotificationService` поддерживает neutral notification types `order_confirmed` и `order_rescheduled`, но в runtime после Issue #11 используется только `order_confirmed`. Callback `order:reschedule:<orderId>`, reschedule-session и post-commit side effects переноса ещё не реализованы.
 
 Целевая граница для согласования и переноса заявок:
 

@@ -401,7 +401,7 @@ order:confirm:<orderId>
 order:reschedule:<orderId>
 ```
 
-Нажатие этих кнопок пока не выполняет transition: обработчики confirm/reschedule относятся к последующим задачам #11 и #12.
+Нажатие `✅ Согласовано` выполняет confirm flow только из настроенного закрытого dispatch-чата. Нажатие `📅 Перенесено` пока не выполняет transition: reschedule callback/session относятся к последующим задачам #12/#13.
 
 Строка `Примерное расстояние от МКАД: N км` показывается только для `OUT_MKAD`. Если адрес внутри МКАД, не определён или расстояние отсутствует, строка не показывается.
 
@@ -413,9 +413,9 @@ order:reschedule:<orderId>
 
 ## Workflow согласования в рамках #6
 
-Этот раздел описывает текущее и целевое поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
+Этот раздел описывает текущее и целевое поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
 
-`OrderWorkflowService` умеет выполнять business transitions `confirmOrder()` и `rescheduleOrder()` через repositories и одну SQLite transaction. Telegram bot пока не вызывает эти операции.
+`OrderWorkflowService` умеет выполнять business transitions `confirmOrder()` и `rescheduleOrder()` через repositories и одну SQLite transaction. Telegram bot вызывает `confirmOrder()` для callback `order:confirm:<orderId>`. `rescheduleOrder()` в Telegram runtime ещё не вызывается.
 
 Менеджер после создания получает сообщение о том, что заявка принята и информация о согласовании или переносе придёт отдельно.
 
@@ -427,16 +427,37 @@ Workflow controls размещаются на техническом dispatch he
 
 `formatted_card_text` остаётся чистым текстом карточки без workflow-кнопок, служебных header-полей и технических данных, чтобы его можно было копировать как раньше.
 
-### Planned flow `✅ Согласовано`
+### Реализованный flow `✅ Согласовано`
 
-После callback из закрытого dispatch-чата Telegram adapter должен:
+После callback из закрытого dispatch-чата Telegram adapter:
 
-1. проверить Telegram-specific context;
-2. вызвать business service согласования;
-3. после successful business commit уведомить менеджера;
-4. обновить технический dispatch header и убрать workflow-кнопки.
+1. подтверждает callback через best-effort `safeAnswerCbQuery()`;
+2. парсит только `order:confirm:<orderId>`;
+3. проверяет, что callback пришёл из `DISPATCH_CHAT_ID`;
+4. перечитывает заявку из SQLite и для новых workflow-заявок сверяет `dispatch_notification_chat_id` и `dispatch_notification_header_message_id`;
+5. вызывает `OrderWorkflowService.confirmOrder()` с actor context `source = telegram`, `externalId = Telegram user id` нажавшего кнопку;
+6. после successful business commit уведомляет менеджера по `orders.telegram_user_id`;
+7. редактирует существующий технический dispatch header на статус `согласовано` и убирает workflow-кнопки.
 
 Менеджер после уведомления о согласовании ничего не подтверждает.
+
+Уведомление менеджеру:
+
+```text
+✅ Заявка #<id> согласована.
+
+Замер согласован на <дата>, <время>.
+```
+
+Если времени нет, текст отправляется без запятой и без `undefined`:
+
+```text
+✅ Заявка #<id> согласована.
+
+Замер согласован на <дата>.
+```
+
+Ошибки уведомления менеджера или редактирования dispatch header не откатывают уже выполненный `confirmed` transition и не создают новую карточку.
 
 ### Planned flow `📅 Перенесено`
 

@@ -108,9 +108,9 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 * `single_photo` — одна фотография через `sendPhoto`;
 * `media_group` — от 2 до 5 фотографий через `sendMediaGroup`.
 
-### Planned structured events для workflow согласования (#6)
+### Structured events для workflow согласования (#6)
 
-Эти события являются целевыми для Issues #11-#13. На момент Issue #10 creation workflow уже пишет `order_created` со статусом `awaiting_coordination`, но confirm/reschedule runtime-логи ещё не считаются реализованными.
+На момент Issue #11 creation workflow пишет `order_created` со статусом `awaiting_coordination`, а confirm runtime пишет события согласования, уведомления менеджера и обновления dispatch header. Reschedule runtime-события остаются planned для #12/#13.
 
 Workflow events:
 
@@ -128,12 +128,12 @@ Manager notification events:
 
 Dispatch edit / side effect events:
 
-* `dispatch_card_updated`;
-* `dispatch_card_update_failed`;
 * `dispatch_header_updated`;
 * `dispatch_header_update_failed`;
-* `dispatch_reschedule_message_sent`;
-* `dispatch_reschedule_message_failed`.
+* `dispatch_card_updated` — planned для reschedule;
+* `dispatch_card_update_failed` — planned для reschedule;
+* `dispatch_reschedule_message_sent` — planned для reschedule;
+* `dispatch_reschedule_message_failed` — planned для reschedule.
 
 Допустимые безопасные поля для этих событий:
 
