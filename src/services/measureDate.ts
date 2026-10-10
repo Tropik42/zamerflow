@@ -1,3 +1,5 @@
+// Файл нормализует ввод даты замера и хранит тексты вопроса про дату.
+
 export const negotiatedMeasureDateText = "По договорённости";
 
 export const measureDateQuestionText = 'Дата замера? Пример: "18 октября" или "18.10.2026".';
@@ -31,6 +33,7 @@ const monthNumberByName = new Map(monthNames.map((name, index) => [name, index +
 const numericDatePattern = /^(\d{1,2})\.(\d{1,2})(?:\.(\d{2}|\d{4}))?$/;
 const namedDatePattern = /^(\d{1,2})\s+([а-яё]+)(?:\s+(\d{4}))?$/iu;
 
+// Принимает свободный ввод даты и нормализует распознанные форматы в русскую карточную строку.
 export function normalizeMeasureDateInput(
   value: string,
   currentYear = new Date().getFullYear()
@@ -65,6 +68,7 @@ export function normalizeMeasureDateInput(
   return { status: "accepted", value };
 }
 
+// Приводит двухзначный год к 20xx и сохраняет четырёхзначный год как число.
 function normalizeYear(value: string | undefined): number | undefined {
   if (!value) {
     return undefined;
@@ -77,6 +81,7 @@ function normalizeYear(value: string | undefined): number | undefined {
   return Number.parseInt(value, 10);
 }
 
+// Проверяет распознанную дату и убирает текущий год из отображаемого текста.
 function normalizeRecognizedDate(params: {
   day: number;
   month: number;
@@ -100,6 +105,7 @@ function normalizeRecognizedDate(params: {
   return { status: "accepted", value: `${normalizedDate} ${year}` };
 }
 
+// Проверяет календарную корректность дня и месяца.
 function isValidCalendarDate(day: number, month: number, year: number | undefined): boolean {
   if (!Number.isInteger(day) || !Number.isInteger(month) || month < 1 || month > 12 || day < 1) {
     return false;
@@ -108,6 +114,7 @@ function isValidCalendarDate(day: number, month: number, year: number | undefine
   return day <= daysInMonth(month, year);
 }
 
+// Возвращает количество дней в месяце с учётом високосного февраля.
 function daysInMonth(month: number, year: number | undefined): number {
   if (month === 2) {
     return year === undefined || isLeapYear(year) ? 29 : 28;
@@ -120,6 +127,7 @@ function daysInMonth(month: number, year: number | undefined): number {
   return 31;
 }
 
+// Проверяет, является ли год високосным по григорианскому календарю.
 function isLeapYear(year: number): boolean {
   return year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
 }

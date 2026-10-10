@@ -1,3 +1,5 @@
+// Файл проверяет callback "Согласовано" в dispatch-чате и побочные Telegram-уведомления.
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -360,6 +362,7 @@ interface ConfirmContext {
   workflowHeaderUpdateService: WorkflowHeaderUpdateService;
 }
 
+// Создаёт временный контекст подтверждения заявки с SQLite, workflow-сервисом и fake Telegram.
 async function withConfirmContext(run: (context: ConfirmContext) => Promise<void>): Promise<void> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zamerflow-order-confirm-"));
   const db = new Database(path.join(tempDir, "test.sqlite"));
@@ -393,6 +396,7 @@ async function withConfirmContext(run: (context: ConfirmContext) => Promise<void
   }
 }
 
+// Создаёт заявку в статусе awaiting_coordination и помечает dispatch-заголовок отправленным.
 function insertAwaitingOrder(
   orderRepository: OrderRepository,
   overrides: Partial<SubmittedOrder> & {
@@ -413,6 +417,7 @@ function insertAwaitingOrder(
   return orderId;
 }
 
+// Создаёт валидную заявку для тестов callback подтверждения.
 function createSubmittedOrder(overrides: Partial<SubmittedOrder> = {}): SubmittedOrder {
   return {
     status: "awaiting_coordination",
@@ -443,6 +448,7 @@ function createSubmittedOrder(overrides: Partial<SubmittedOrder> = {}): Submitte
   };
 }
 
+// Собирает минимальный Telegraf Context для inline callback query.
 function createCallbackContext(params: {
   data: string;
   chatId?: string;
@@ -484,6 +490,7 @@ function createCallbackContext(params: {
   } as unknown as Context;
 }
 
+// Формирует текст dispatch-заголовка, который затем должен быть обновлён.
 function createHeaderText(orderId: number, photoCount: number): string {
   return [
     "О Повелитель, поступила новая заявка!",
@@ -502,6 +509,7 @@ interface CountingWorkflowService extends OrderWorkflowService {
   confirmCalls: ConfirmOrderParams[];
 }
 
+// Создаёт workflow-сервис-счётчик для проверки, что guard не пропускает плохие callback-и.
 function createCountingWorkflowService(): CountingWorkflowService {
   const confirmCalls: ConfirmOrderParams[] = [];
 
@@ -549,6 +557,7 @@ interface FakeTelegram {
   failEditMessageText?: Error;
 }
 
+// Создаёт fake Telegraf, который записывает отправки менеджеру и редактирование заголовка.
 function createFakeTelegram(): FakeTelegram {
   const fake = {
     calls: []

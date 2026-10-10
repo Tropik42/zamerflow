@@ -1,3 +1,5 @@
+// Файл проверяет нормализацию даты замера и переход wizard после выбора даты.
+
 import assert from "node:assert/strict";
 import {
   applyMeasureDateToSession,
@@ -8,6 +10,7 @@ import type { WizardSession } from "../src/types/order.js";
 
 const currentYear = 2026;
 
+// Проверяет успешную нормализацию даты в ожидаемый текст карточки.
 function assertAccepted(input: string, expectedValue: string): void {
   assert.deepEqual(normalizeMeasureDateInput(input, currentYear), {
     status: "accepted",
@@ -15,6 +18,7 @@ function assertAccepted(input: string, expectedValue: string): void {
   });
 }
 
+// Проверяет отклонение календарно некорректной даты.
 function assertRejected(input: string): void {
   assert.deepEqual(normalizeMeasureDateInput(input, currentYear), {
     status: "rejected"

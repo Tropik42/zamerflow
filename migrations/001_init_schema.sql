@@ -1,8 +1,12 @@
+-- Создаёт базовую схему ZamerFlow: справочники, Telegram-пользователей, заявки и обязательные позиции.
+
+-- Хранит список уже применённых миграций.
 CREATE TABLE IF NOT EXISTS schema_migrations (
   filename TEXT PRIMARY KEY,
   applied_at TEXT NOT NULL
 );
 
+-- Хранит справочник салонов, тарифы и правила оплаты.
 CREATE TABLE salons (
   salon_id INTEGER PRIMARY KEY AUTOINCREMENT,
   create_datetime TEXT NOT NULL,
@@ -31,6 +35,7 @@ CREATE INDEX idx_salons_name ON salons(salon_name);
 CREATE INDEX idx_salons_active_sort ON salons(is_active, sort_order);
 CREATE INDEX idx_salons_payment_fixed ON salons(is_payment_by_fixed);
 
+-- Хранит менеджеров салонов, которые создают заявки через Telegram.
 CREATE TABLE salon_managers (
   manager_id INTEGER PRIMARY KEY AUTOINCREMENT,
   salon_id INTEGER NOT NULL,
@@ -54,6 +59,7 @@ CREATE INDEX idx_salon_managers_salon_id ON salon_managers(salon_id);
 CREATE INDEX idx_salon_managers_active_sort ON salon_managers(salon_id, is_active, sort_order);
 CREATE INDEX idx_salon_managers_role ON salon_managers(manager_role);
 
+-- Хранит одноразовые коды для привязки менеджеров к Telegram-пользователям.
 CREATE TABLE manager_auth_codes (
   auth_code TEXT PRIMARY KEY,
   manager_id INTEGER NOT NULL,
@@ -69,6 +75,7 @@ CREATE TABLE manager_auth_codes (
 CREATE INDEX idx_manager_auth_codes_manager_id ON manager_auth_codes(manager_id);
 CREATE INDEX idx_manager_auth_codes_is_used ON manager_auth_codes(is_used);
 
+-- Хранит Telegram-пользователей и их связь с салоном и менеджером.
 CREATE TABLE telegram_users (
   telegram_user_id TEXT PRIMARY KEY,
 
@@ -94,6 +101,7 @@ CREATE INDEX idx_telegram_users_salon_id ON telegram_users(salon_id);
 CREATE INDEX idx_telegram_users_manager_id ON telegram_users(manager_id);
 CREATE INDEX idx_telegram_users_role ON telegram_users(role);
 
+-- Хранит заявки со snapshot-полями салона, менеджера и тарифов.
 CREATE TABLE orders (
   order_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -147,6 +155,7 @@ CREATE INDEX idx_orders_salon_id ON orders(salon_id);
 CREATE INDEX idx_orders_manager_id ON orders(manager_id);
 CREATE INDEX idx_orders_telegram_user_id ON orders(telegram_user_id);
 
+-- Хранит позиции заявки, включая автоматически добавленные обязательные позиции салона.
 CREATE TABLE order_items (
   order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
@@ -173,6 +182,7 @@ CREATE TABLE order_items (
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_type ON order_items(item_type);
 
+-- Хранит правила обязательных позиций, которые салон требует добавлять в заявки.
 CREATE TABLE salon_required_items (
   salon_required_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
 

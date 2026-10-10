@@ -1,3 +1,5 @@
+// Файл регистрирует страницы админки для управления салонами и обязательными позициями.
+
 import type { FastifyInstance } from "fastify";
 import {
   asFormBody,
@@ -20,6 +22,7 @@ export function registerSalonRoutes(
   salonRepository: SalonRepository,
   salonRequiredItemRepository: SalonRequiredItemRepository
 ): void {
+  // Показывает список салонов и основные тарифные настройки.
   app.get("/admin/salons", async () => {
     const salons = salonRepository.getAllSalons();
 
@@ -60,15 +63,18 @@ export function registerSalonRoutes(
     );
   });
 
+  // Открывает форму создания салона.
   app.get("/admin/salons/new", async () => {
     return layout("Создать салон", `<h1>Создать салон</h1>${salonForm("/admin/salons")}`);
   });
 
+  // Создаёт салон из POST-формы админки.
   app.post("/admin/salons", async (request, reply) => {
     salonRepository.createSalon(parseSalonForm(request.body));
     return reply.redirect("/admin/salons");
   });
 
+  // Открывает форму редактирования салона и блок обязательных позиций.
   app.get<{ Params: { salonId: string } }>("/admin/salons/:salonId/edit", async (request, reply) => {
     const salon = salonRepository.getSalonById(Number(request.params.salonId));
 
@@ -85,11 +91,13 @@ export function registerSalonRoutes(
     );
   });
 
+  // Сохраняет основные поля салона.
   app.post<{ Params: { salonId: string } }>("/admin/salons/:salonId", async (request, reply) => {
     salonRepository.updateSalon(Number(request.params.salonId), parseSalonForm(request.body));
     return reply.redirect("/admin/salons");
   });
 
+  // Добавляет правило обязательной позиции, которая попадёт в новые заявки салона.
   app.post<{ Params: { salonId: string } }>("/admin/salons/:salonId/required-items", async (request, reply) => {
     const salonId = Number(request.params.salonId);
     salonRequiredItemRepository.createRequiredItem(parseRequiredItemForm(salonId, request.body));
@@ -97,6 +105,7 @@ export function registerSalonRoutes(
   });
 }
 
+// Собирает HTML-форму салона с тарифами и настройками фиксированной оплаты.
 function salonForm(action: string, salon?: Salon): string {
   return form(
     action,
@@ -146,6 +155,7 @@ function salonForm(action: string, salon?: Salon): string {
   );
 }
 
+// Рисует список правил обязательных позиций и форму добавления нового правила.
 function requiredItemsBlock(
   salonId: number,
   salonRequiredItemRepository: SalonRequiredItemRepository
@@ -193,6 +203,7 @@ function requiredItemsBlock(
     )}`;
 }
 
+// Преобразует POST body салона в параметры репозитория.
 function parseSalonForm(body: unknown): SalonFormParams {
   const formBody = asFormBody(body);
   const defaultPaymentBy = paymentByValue(formBody, "default_payment_by");
@@ -214,6 +225,7 @@ function parseSalonForm(body: unknown): SalonFormParams {
   };
 }
 
+// Пропускает пустое значение оплаты и принимает только варианты из доменной модели.
 function paymentByValue(body: ReturnType<typeof asFormBody>, name: string): PaymentBy | undefined {
   const valueToParse = stringValue(body, name);
 
@@ -227,6 +239,7 @@ function paymentByValue(body: ReturnType<typeof asFormBody>, name: string): Paym
     : undefined;
 }
 
+// Преобразует POST body обязательной позиции в параметры репозитория.
 function parseRequiredItemForm(salonId: number, body: unknown): SalonRequiredItemFormParams {
   const formBody = asFormBody(body);
 

@@ -1,3 +1,6 @@
+// Файл содержит доменные типы заявок, салонов, позиций замера и wizard-сессии.
+
+// ServiceItemType перечисляет позиции, которые менеджер может выбрать в Telegram-сценарии.
 export type ServiceItemType =
   | "кухня"
   | "шкаф"
@@ -10,6 +13,7 @@ export type ServiceItemType =
   | "стеновые панели"
   | "по плану";
 
+// ServiceItem хранит пользовательские и автоматически добавленные позиции с snapshot-полями.
 export interface ServiceItem {
   type: string;
   quantity: number;
@@ -23,11 +27,13 @@ export interface ServiceItem {
   sortOrder?: number;
 }
 
+// DraftPhoto хранит Telegram file_id фотографий до отправки заявки.
 export interface DraftPhoto {
   fileId: string;
   fileUniqueId?: string;
 }
 
+// Salon описывает справочник салонов с тарифами и правилами оплаты.
 export interface Salon {
   salon_id: number;
   create_datetime: string;
@@ -47,6 +53,7 @@ export interface Salon {
   is_active: number;
 }
 
+// OrderItemRecord отражает сохранённые позиции заявки из таблицы order_items.
 export interface OrderItemRecord {
   order_item_id: number;
   order_id: number;
@@ -64,6 +71,7 @@ export interface OrderItemRecord {
   sort_order: number;
 }
 
+// SalonRequiredItem описывает правило салона для автоматического добавления позиции в заявку.
 export interface SalonRequiredItem {
   salon_required_item_id: number;
   salon_id: number;
@@ -88,14 +96,17 @@ export type BeltwayHit = "IN_MKAD" | "OUT_MKAD" | "IN_KAD" | "OUT_KAD" | "UNKNOW
 
 export type DispatchNotificationStatus = "not_sent" | "sent" | "failed";
 
+// orderStatusCodes фиксирует допустимые workflow-статусы заявки.
 export const orderStatusCodes = ["accepted", "awaiting_coordination", "confirmed"] as const;
 
 export type OrderStatusCode = (typeof orderStatusCodes)[number];
 
+// orderWorkflowEventTypes фиксирует типы событий истории статусов.
 export const orderWorkflowEventTypes = ["created", "confirmed", "rescheduled"] as const;
 
 export type OrderWorkflowEventType = (typeof orderWorkflowEventTypes)[number];
 
+// AddressGeoSnapshot хранит результат обогащения адреса через DaData.
 export interface AddressGeoSnapshot {
   source: "dadata";
   normalizedAddress?: string;
@@ -106,6 +117,7 @@ export interface AddressGeoSnapshot {
   qcHouse?: number;
 }
 
+// OrderDraft хранит черновик Telegram wizard до сохранения заявки.
 export interface OrderDraft {
   salonId?: number;
   managerId?: number;
@@ -140,6 +152,7 @@ export interface OrderDraft {
   comment?: string;
 }
 
+// SubmittedOrder описывает уже заполненную заявку перед сохранением в SQLite.
 export interface SubmittedOrder {
   status: "awaiting_coordination";
   salonId?: number;
@@ -176,6 +189,7 @@ export interface SubmittedOrder {
   telegramUserId?: string;
 }
 
+// OrderRecord отражает строку orders с dispatch-полями и snapshot-данными.
 export interface OrderRecord {
   order_id: number;
   create_datetime: string;
@@ -223,6 +237,7 @@ export interface OrderRecord {
   dispatch_notification_last_attempt_at?: string;
 }
 
+// OrderStatusHistoryRecord отражает событие истории workflow-статусов заявки.
 export interface OrderStatusHistoryRecord {
   order_status_history_id: number;
   order_id: number;
@@ -239,6 +254,7 @@ export interface OrderStatusHistoryRecord {
   create_datetime: string;
 }
 
+// WizardStep перечисляет технические шаги Telegram wizard.
 export type WizardStep =
   | "selectSalon"
   | "managerContact"
@@ -255,6 +271,7 @@ export type WizardStep =
   | "photos"
   | "preview";
 
+// MainOrderWizardStep перечисляет шаги, показываемые менеджеру в прогрессе.
 export type MainOrderWizardStep =
   | "clientContact"
   | "address"
@@ -266,6 +283,7 @@ export type MainOrderWizardStep =
   | "extraCharges"
   | "comment";
 
+// WizardSession хранит состояние диалога пользователя в конкретном чате.
 export interface WizardSession {
   step: WizardStep;
   draft: OrderDraft;

@@ -1,5 +1,8 @@
+// Файл нормализует российские телефоны и телефоны внутри контактного текста.
+
 export const russianPhoneFormatHint = "+7-XXX-XXX-XX-XX";
 
+// Ошибка нормализации телефона хранит количество найденных цифр для понятного ответа пользователю.
 export class PhoneNormalizationError extends Error {
   readonly digitCount?: number;
 
@@ -21,6 +24,7 @@ export interface ContactPhoneNormalizationResult {
 const phoneAllowedCharacters = /^[+\d\s()-]+$/;
 const phoneCandidatePattern = /\+?\d[\d\s()-]{8,}\d/g;
 
+// Приводит российский номер из 11 цифр к формату +7-XXX-XXX-XX-XX.
 export function normalizeRussianPhone(value: string): string {
   const trimmed = value.trim();
   const digitCount = countPhoneDigits(trimmed);
@@ -58,10 +62,12 @@ export function normalizeRussianPhone(value: string): string {
   ].join("-");
 }
 
+// Нормализует необязательное поле телефона, оставляя undefined для пустого ввода.
 export function normalizeOptionalRussianPhone(value: string | undefined): string | undefined {
   return value ? normalizeRussianPhone(value) : undefined;
 }
 
+// Нормализует первый телефон внутри свободного контактного текста клиента.
 export function normalizeRussianPhoneInText(value: string): ContactPhoneNormalizationResult {
   const trimmed = value.trim();
 
@@ -104,10 +110,12 @@ export function normalizeRussianPhoneInText(value: string): ContactPhoneNormaliz
   return { value: trimmed };
 }
 
+// Считает все цифры в строке для диагностики ошибок ввода телефона.
 export function countPhoneDigits(value: string): number {
   return value.replace(/\D/g, "").length;
 }
 
+// Заменяет найденный телефонный фрагмент нормализованным номером.
 function replacePhoneCandidate(
   text: string,
   startIndex: number,
@@ -119,6 +127,7 @@ function replacePhoneCandidate(
     .trim();
 }
 
+// Определяет, похож ли текст на попытку ввести российский телефон.
 function isLikelyRussianPhoneAttempt(value: string): boolean {
   const trimmed = value.trim();
   const digits = trimmed.replace(/\D/g, "");
@@ -126,6 +135,7 @@ function isLikelyRussianPhoneAttempt(value: string): boolean {
   return trimmed.startsWith("+7") || digits.length >= 10;
 }
 
+// Проверяет явные признаки неправильного российского номера.
 function hasExplicitInvalidRussianPhoneAttempt(value: string): boolean {
   if (phoneAllowedCharacters.test(value) && /\d/.test(value)) {
     return true;
@@ -136,6 +146,7 @@ function hasExplicitInvalidRussianPhoneAttempt(value: string): boolean {
   return value.includes("+7") || digits.length >= 10 || hasShortRussianPhoneAttempt(value);
 }
 
+// Выделяет короткие попытки ввода телефона, чтобы бот мог дать понятную ошибку.
 function hasShortRussianPhoneAttempt(value: string): boolean {
   for (const candidate of value.matchAll(/\+?\d[\d\s()-]*/g)) {
     const text = candidate[0].trim();

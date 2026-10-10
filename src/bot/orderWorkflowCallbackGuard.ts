@@ -1,3 +1,5 @@
+// Файл проверяет callback-и workflow-кнопок, чтобы их можно было нажать только в dispatch-чате.
+
 import type { Context } from "telegraf";
 import type { OrderRecord } from "../types/order.js";
 
@@ -36,6 +38,7 @@ export type WorkflowCallbackGuardResult =
       reason: WorkflowCallbackGuardFailureReason;
     };
 
+// Разбирает callback_data кнопки согласования и валидирует id заявки.
 export function parseOrderConfirmCallbackData(data: unknown): ParseOrderConfirmCallbackResult {
   if (typeof data !== "string") {
     return { status: "invalid" };
@@ -59,6 +62,7 @@ export function parseOrderConfirmCallbackData(data: unknown): ParseOrderConfirmC
   };
 }
 
+// Достаёт callback_data из Telegraf Context без небезопасных предположений о типе update.
 export function extractWorkflowCallbackData(ctx: Context): unknown {
   const callbackQuery = ctx.callbackQuery;
 
@@ -69,6 +73,7 @@ export function extractWorkflowCallbackData(ctx: Context): unknown {
   return callbackQuery.data;
 }
 
+// Достаёт chat id, message id и текущий текст сообщения, на котором нажали workflow-кнопку.
 export function extractWorkflowCallbackMessage(
   ctx: Context
 ): WorkflowCallbackMessageIdentity | undefined {
@@ -106,6 +111,7 @@ export function extractWorkflowCallbackMessage(
   };
 }
 
+// Проверяет, что callback пришёл из настроенного dispatch-чата и с сохранённого header-сообщения.
 export function validateWorkflowCallbackIdentity(params: {
   configuredDispatchChatId?: string;
   message?: WorkflowCallbackMessageIdentity;
@@ -159,6 +165,7 @@ export function validateWorkflowCallbackIdentity(params: {
   };
 }
 
+// Узкая проверка object для безопасного чтения полей callback query.
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

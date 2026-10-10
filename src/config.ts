@@ -1,3 +1,5 @@
+// Файл описывает и загружает конфигурацию приложения из переменных окружения.
+
 export type AppEnv = "development" | "production";
 
 export interface AppConfig {
@@ -71,6 +73,7 @@ function normalizeOptionalEnv(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+// Проверяет допустимое окружение запуска приложения.
 function parseAppEnv(value: string): AppEnv {
   if (value === "development" || value === "production") {
     return value;
@@ -79,6 +82,7 @@ function parseAppEnv(value: string): AppEnv {
   throw new Error("APP_ENV must be either 'development' or 'production'.");
 }
 
+// Преобразует строковые env-флаги в boolean и явно отсекает опечатки.
 function parseBooleanEnv(value: string, name: string): boolean {
   if (value === "true") {
     return true;

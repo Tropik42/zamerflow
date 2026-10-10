@@ -1,3 +1,5 @@
+// Файл обогащает адрес заявки геоданными DaData и нормализует результат для snapshot-полей.
+
 import type { DadataCleanAddressResult, DadataClient } from "../integrations/dadataClient.js";
 import type { AddressGeoSnapshot, BeltwayHit } from "../types/order.js";
 
@@ -5,6 +7,7 @@ export interface AddressGeoService {
   enrichAddress(address: string | undefined): Promise<AddressGeoSnapshot | undefined>;
 }
 
+// Создаёт сервис обогащения адресов, который мягко отключается без DaData-настроек.
 export function createAddressGeoService(params: {
   enabled: boolean;
   dadataClient?: DadataClient;
@@ -30,6 +33,7 @@ export function createAddressGeoService(params: {
   };
 }
 
+// Преобразует ответ DaData в доменный snapshot адреса.
 function mapDadataAddress(result: DadataCleanAddressResult): AddressGeoSnapshot {
   return {
     source: "dadata",
@@ -42,6 +46,7 @@ function mapDadataAddress(result: DadataCleanAddressResult): AddressGeoSnapshot 
   };
 }
 
+// Ограничивает значение beltway_hit известными кодами, иначе возвращает UNKNOWN.
 function normalizeBeltwayHit(value: string | undefined): BeltwayHit {
   if (value === "IN_MKAD" || value === "OUT_MKAD" || value === "IN_KAD" || value === "OUT_KAD") {
     return value;
@@ -50,11 +55,13 @@ function normalizeBeltwayHit(value: string | undefined): BeltwayHit {
   return "UNKNOWN";
 }
 
+// Обрезает пустые строки из ответа DaData.
 function normalizeString(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
+// Приводит числовые поля DaData к number и отбрасывает мусор.
 function normalizeNumber(value: string | number | undefined): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -68,6 +75,7 @@ function normalizeNumber(value: string | number | undefined): number | undefined
   return undefined;
 }
 
+// Возвращает безопасный текст ошибки для warning-лога.
 function safeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;

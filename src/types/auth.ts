@@ -1,3 +1,6 @@
+// Файл описывает типы авторизации Telegram-пользователей и одноразовых кодов менеджеров.
+
+// TelegramUser отражает строку telegram_users вместе с присоединёнными данными салона и менеджера.
 export interface TelegramUser {
   telegram_user_id: string;
   create_datetime: string;
@@ -15,6 +18,7 @@ export interface TelegramUser {
   manager_role?: string;
 }
 
+// ManagerAuthCode отражает одноразовый код, который админ выдаёт менеджеру.
 export interface ManagerAuthCode {
   auth_code: string;
   manager_id: number;
@@ -23,6 +27,7 @@ export interface ManagerAuthCode {
   is_used: number;
 }
 
+// AuthenticatedUser описывает активного пользователя, уже привязанного к салону и менеджеру.
 export interface AuthenticatedUser extends TelegramUser {
   role: "manager" | string;
   salon_id: number;
@@ -33,6 +38,7 @@ export interface AuthenticatedUser extends TelegramUser {
   manager_role?: string;
 }
 
+// TelegramUserIdentity хранит данные Telegram-профиля, нужные при привязке к менеджеру.
 export interface TelegramUserIdentity {
   telegram_user_id: string;
   username?: string;

@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий привязок Telegram-пользователей к менеджерам.
+
 import type { AppDatabase } from "./db.js";
 import type { AuthenticatedUser, TelegramUser, TelegramUserIdentity } from "../types/auth.js";
 
@@ -19,6 +21,7 @@ export interface TelegramUserRepository {
  * @returns {TelegramUserRepository} Методы чтения и записи Telegram-пользователей.
  */
 export function createTelegramUserRepository(db: AppDatabase): TelegramUserRepository {
+  // Читает пользователя вместе с текущими данными салона и менеджера.
   const selectByTelegramUserId = db.prepare(`
     SELECT
       tu.telegram_user_id,
@@ -42,6 +45,7 @@ export function createTelegramUserRepository(db: AppDatabase): TelegramUserRepos
     LIMIT 1
   `);
 
+  // Создаёт активную Telegram-привязку после успешного использования кода.
   const insertFromManager = db.prepare(`
     INSERT INTO telegram_users (
       telegram_user_id,
@@ -68,6 +72,7 @@ export function createTelegramUserRepository(db: AppDatabase): TelegramUserRepos
     )
   `);
 
+  // Включает или отключает пользователя без удаления записи.
   const updateActivity = db.prepare(`
     UPDATE telegram_users
     SET
@@ -142,6 +147,7 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+// Преобразует nullable SQLite-значение в необязательное число.
 function optionalNumber(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
 }

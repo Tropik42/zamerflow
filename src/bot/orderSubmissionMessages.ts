@@ -1,3 +1,6 @@
+// Файл форматирует сообщения менеджеру после принятия заявки ботом.
+
+// Формирует обычное подтверждение принятой заявки.
 export function formatOrderSubmittedMessage(orderId: number): string {
   return [
     `✅ Заявка #${orderId} принята.`,
@@ -6,6 +9,7 @@ export function formatOrderSubmittedMessage(orderId: number): string {
   ].join("\n");
 }
 
+// Формирует подтверждение с предупреждением, если dispatch-отправка не удалась.
 export function formatOrderSubmittedDispatchFailureMessage(orderId: number): string {
   return [
     formatOrderSubmittedMessage(orderId),

@@ -1,3 +1,5 @@
+// Файл хранит варианты позиций замера и правила их отображения в карточке.
+
 import type { ServiceItemType } from "../types/order.js";
 
 export interface MeasureServiceItem {
@@ -89,14 +91,17 @@ const customFirstLabelRules: Array<{ pattern: RegExp; replacement: string }> = [
   { pattern: /^инсталляция(?=$|\s)/i, replacement: "инсталляции" }
 ];
 
+// Ищет позицию замера по callback-key из inline-кнопки.
 export function getMeasureServiceItemByKey(key: string): MeasureServiceItem | undefined {
   return measureServiceItems.find((item) => item.key === key);
 }
 
+// Проверяет, что строка является допустимым типом позиции замера.
 export function isMeasureServiceItemType(value: string): value is ServiceItemType {
   return measureServiceItems.some((item) => item.itemType === value);
 }
 
+// Форматирует первую позицию для фразы "Замер ..." в карточке.
 export function formatMeasureServiceItemForCardFirst(itemType: string): string {
   const serviceItem = measureServiceItems.find((item) => item.itemType === itemType);
   if (serviceItem) {
@@ -109,6 +114,7 @@ export function formatMeasureServiceItemForCardFirst(itemType: string): string {
   );
 }
 
+// Форматирует дополнительные позиции списком в карточке.
 export function formatMeasureServiceItemForCardList(itemType: string): string {
   return measureServiceItems.find((item) => item.itemType === itemType)?.cardListLabel ?? itemType;
 }

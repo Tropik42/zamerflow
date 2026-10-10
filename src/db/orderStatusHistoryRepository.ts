@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий истории workflow-статусов заявок.
+
 import type { AppDatabase } from "./db.js";
 import {
   orderStatusCodes,
@@ -27,7 +29,9 @@ export interface RecordOrderStatusHistoryEventParams {
   createDatetime?: string;
 }
 
+// Создаёт репозиторий для записи и чтения событий order_status_history.
 export function createOrderStatusHistoryRepository(db: AppDatabase): OrderStatusHistoryRepository {
+  // Добавляет событие workflow с актором и возможной сменой даты.
   const insertHistoryEvent = db.prepare(`
     INSERT INTO order_status_history (
       order_id,
@@ -58,6 +62,7 @@ export function createOrderStatusHistoryRepository(db: AppDatabase): OrderStatus
     )
   `);
 
+  // Читает историю заявки в хронологическом порядке.
   const selectHistoryByOrderId = db.prepare(`
     SELECT
       order_status_history_id,
@@ -103,6 +108,7 @@ export function createOrderStatusHistoryRepository(db: AppDatabase): OrderStatus
   };
 }
 
+// Преобразует строку SQLite в типизированное событие истории.
 function mapOrderStatusHistoryRow(row: unknown): OrderStatusHistoryRecord {
   const history = row as Record<string, unknown>;
 
@@ -123,6 +129,7 @@ function mapOrderStatusHistoryRow(row: unknown): OrderStatusHistoryRecord {
   };
 }
 
+// Проверяет, что event_type входит в список известных workflow-событий.
 function mapOrderWorkflowEventType(value: unknown): OrderWorkflowEventType {
   if (typeof value === "string" && (orderWorkflowEventTypes as readonly string[]).includes(value)) {
     return value as OrderWorkflowEventType;
@@ -131,6 +138,7 @@ function mapOrderWorkflowEventType(value: unknown): OrderWorkflowEventType {
   throw new Error(`Unknown order workflow event type: ${String(value)}`);
 }
 
+// Проверяет необязательный статус и возвращает undefined для пустых значений.
 function mapOptionalOrderStatusCode(value: unknown): OrderStatusCode | undefined {
   if (value === null || value === undefined || value === "") {
     return undefined;
@@ -143,6 +151,7 @@ function mapOptionalOrderStatusCode(value: unknown): OrderStatusCode | undefined
   throw new Error(`Unknown order status code: ${String(value)}`);
 }
 
+// Преобразует nullable SQLite-значение в необязательную строку.
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }

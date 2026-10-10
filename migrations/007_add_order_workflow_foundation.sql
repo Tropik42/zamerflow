@@ -1,3 +1,6 @@
+-- Добавляет основу workflow заявок: статусы и историю событий.
+
+-- Справочник статусов фиксирует допустимые состояния заявки.
 CREATE TABLE order_statuses (
   status_code TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
@@ -6,6 +9,7 @@ CREATE TABLE order_statuses (
   is_active INTEGER NOT NULL DEFAULT 1
 );
 
+-- Заполняет стартовые статусы без добавления отдельного статуса "перенесена".
 INSERT INTO order_statuses (
   status_code,
   display_name,
@@ -35,6 +39,7 @@ INSERT INTO order_statuses (
     1
   );
 
+-- История статусов хранит события создания, согласования и переноса заявки.
 CREATE TABLE order_status_history (
   order_status_history_id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
@@ -62,5 +67,6 @@ CREATE TABLE order_status_history (
   FOREIGN KEY (to_status_code) REFERENCES order_statuses(status_code) ON DELETE RESTRICT
 );
 
+-- Индекс ускоряет чтение хронологии конкретной заявки.
 CREATE INDEX idx_order_status_history_order_datetime
 ON order_status_history(order_id, create_datetime, order_status_history_id);

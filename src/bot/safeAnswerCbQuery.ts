@@ -1,3 +1,5 @@
+// Файл безопасно подтверждает Telegram callback query и игнорирует протухшие callback-и.
+
 import type { Context } from "telegraf";
 
 const staleCallbackMessageParts = [
@@ -6,6 +8,7 @@ const staleCallbackMessageParts = [
   "query ID is invalid"
 ];
 
+// Отвечает на callback query, не падая на устаревших кнопках Telegram.
 export async function safeAnswerCbQuery(ctx: Context): Promise<void> {
   try {
     await ctx.answerCbQuery();
@@ -19,6 +22,7 @@ export async function safeAnswerCbQuery(ctx: Context): Promise<void> {
   }
 }
 
+// Определяет типичные ошибки Telegraf для слишком старого callback query.
 function isStaleCallbackQueryError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
 

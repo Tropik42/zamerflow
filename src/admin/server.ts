@@ -1,3 +1,5 @@
+// Файл запускает Fastify-админку и подключает разделы управления справочниками и заявками.
+
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { registerAuthCodeRoutes } from "./routes/authCodes.js";
@@ -23,6 +25,7 @@ export interface AdminServerOptions extends AdminServerRepositories {
   port: number;
 }
 
+// Создаёт Fastify-приложение, регистрирует общие middleware и запускает HTTP-сервер админки.
 export async function startAdminServer(options: AdminServerOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger: false
@@ -53,10 +56,12 @@ export async function startAdminServer(options: AdminServerOptions): Promise<Fas
     reply.send(error);
   });
 
+  // Healthcheck нужен для ручной проверки деплоя и будущего CI/CD smoke-check.
   app.get("/health", async () => {
     return { ok: true };
   });
 
+  // Главная страница админки показывает быстрые счётчики и ссылки на разделы.
   app.get("/admin", async () => {
     return layout(
       "Админка",
@@ -87,6 +92,7 @@ export async function startAdminServer(options: AdminServerOptions): Promise<Fas
   return app;
 }
 
+// Достаёт HTTP statusCode из ошибки Fastify, иначе возвращает 500.
 function getErrorStatusCode(error: unknown): number {
   if (typeof error === "object" && error !== null && "statusCode" in error) {
     const statusCode = Number((error as { statusCode?: unknown }).statusCode);

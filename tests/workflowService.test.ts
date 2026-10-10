@@ -1,3 +1,5 @@
+// Файл проверяет транзакционные операции workflow-сервиса: согласование и перенос заявки.
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -403,6 +405,7 @@ interface WorkflowContext {
   service: OrderWorkflowService;
 }
 
+// Создаёт временную SQLite-базу с репозиториями и workflow-сервисом для каждого сценария.
 function withWorkflowContext(run: (context: WorkflowContext) => void): void {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zamerflow-workflow-service-"));
   const db = new Database(path.join(tempDir, "test.sqlite"));
@@ -432,6 +435,7 @@ function withWorkflowContext(run: (context: WorkflowContext) => void): void {
   }
 }
 
+// Создаёт тестовую заявку напрямую в SQLite с нужными полями workflow и snapshot.
 function insertOrder(
   db: Database.Database,
   params: {
@@ -571,6 +575,7 @@ function insertOrder(
   return Number(result.lastInsertRowid);
 }
 
+// Добавляет позицию заявки напрямую в SQLite для проверки пересборки карточки при переносе.
 function insertOrderItem(
   db: Database.Database,
   orderId: number,
@@ -634,6 +639,7 @@ function insertOrderItem(
   });
 }
 
+// Считает события истории, чтобы проверить отсутствие побочных записей.
 function countHistory(db: Database.Database): number {
   const row = db.prepare("SELECT COUNT(*) AS count FROM order_status_history").get() as {
     count: number;
@@ -642,6 +648,7 @@ function countHistory(db: Database.Database): number {
   return Number(row.count);
 }
 
+// Создаёт history repository, который падает после записи, чтобы проверить rollback.
 function createThrowingHistoryRepository(
   repository: OrderStatusHistoryRepository
 ): OrderStatusHistoryRepository {

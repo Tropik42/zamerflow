@@ -1,3 +1,5 @@
+// Файл является точкой входа: собирает зависимости, запускает миграции, бота и админку.
+
 import "dotenv/config";
 import type { Context, Telegraf } from "telegraf";
 import { startAdminServer } from "./admin/server.js";
@@ -21,10 +23,12 @@ console.info(
   `ZamerFlow application starting: env=${config.appEnv}, bot_enabled=${config.botEnabled}, dadata_enabled=${config.dadata.enabled}.`
 );
 
+// Создаём SQLite-подключение и доводим схему до актуальной версии перед стартом сервисов.
 const db = createDatabase(config.databasePath);
 
 runMigrations(db);
 
+// Собираем репозитории и сервисы вручную, чтобы MVP оставался без DI-контейнера и ORM.
 const orderRepository = createOrderRepository(db);
 const orderStatusHistoryRepository = createOrderStatusHistoryRepository(db);
 const salonRepository = createSalonRepository(db);
@@ -43,6 +47,7 @@ const addressGeoService = createAddressGeoService({
   enabled: config.dadata.enabled,
   dadataClient
 });
+// Telegram-бот создаётся только если это разрешено env-флагом BOT_ENABLED.
 const bot = config.botEnabled
   ? createBot(
       config.botToken,
@@ -88,6 +93,7 @@ if (bot) {
 console.info(`ZamerFlow admin started at http://localhost:${config.adminPort}/admin`);
 console.info(`ZamerFlow healthcheck available at http://localhost:${config.adminPort}/health`);
 
+// Аккуратно останавливает polling, HTTP-сервер и SQLite при завершении процесса.
 async function shutdown(signal: "SIGINT" | "SIGTERM"): Promise<void> {
   console.info(`ZamerFlow application stopping: signal=${signal}.`);
   bot?.stop(signal);
@@ -104,6 +110,7 @@ process.once("SIGTERM", () => {
   void shutdown("SIGTERM");
 });
 
+// Запускает Telegram long polling с несколькими попытками на случай временной ошибки Telegram API.
 async function launchBotWithRetry(botToLaunch: Telegraf<Context>): Promise<void> {
   const maxAttempts = 5;
   const retryDelayMs = 3000;
@@ -127,6 +134,7 @@ async function launchBotWithRetry(botToLaunch: Telegraf<Context>): Promise<void>
   }
 }
 
+// Возвращает Promise-задержку для retry-цикла запуска бота.
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

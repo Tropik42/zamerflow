@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий обязательных позиций салонов.
+
 import type { AppDatabase } from "./db.js";
 import type { SalonRequiredItem } from "../types/order.js";
 
@@ -24,7 +26,9 @@ export interface SalonRequiredItemRepository {
   disableRequiredItem(id: number): void;
 }
 
+// Создаёт репозиторий правил, которые автоматически добавляют позиции в новые заявки.
 export function createSalonRequiredItemRepository(db: AppDatabase): SalonRequiredItemRepository {
+  // Общий SELECT-фрагмент возвращает все поля правила обязательной позиции.
   const selectFields = `
     SELECT
       salon_required_item_id,
@@ -45,18 +49,21 @@ export function createSalonRequiredItemRepository(db: AppDatabase): SalonRequire
     FROM salon_required_items
   `;
 
+  // Активные auto_add_to_order правила используются ботом при создании заявки.
   const selectActiveBySalonId = db.prepare(`
     ${selectFields}
     WHERE salon_id = ? AND is_active = 1 AND auto_add_to_order = 1
     ORDER BY sort_order ASC, salon_required_item_id ASC
   `);
 
+  // Все правила салона нужны админке на странице редактирования салона.
   const selectBySalonId = db.prepare(`
     ${selectFields}
     WHERE salon_id = ?
     ORDER BY sort_order ASC, salon_required_item_id ASC
   `);
 
+  // Создаёт правило обязательной позиции с будущими snapshot-значениями для order_items.
   const insertRequiredItem = db.prepare(`
     INSERT INTO salon_required_items (
       salon_id,
@@ -91,6 +98,7 @@ export function createSalonRequiredItemRepository(db: AppDatabase): SalonRequire
     )
   `);
 
+  // Обновляет правило справочника без изменения уже созданных заявок.
   const updateRequiredItem = db.prepare(`
     UPDATE salon_required_items
     SET
@@ -110,6 +118,7 @@ export function createSalonRequiredItemRepository(db: AppDatabase): SalonRequire
     WHERE salon_required_item_id = @id
   `);
 
+  // Деактивирует правило вместо удаления, чтобы не терять историю настроек.
   const disableRequiredItem = db.prepare(`
     UPDATE salon_required_items
     SET
@@ -141,6 +150,7 @@ export function createSalonRequiredItemRepository(db: AppDatabase): SalonRequire
   };
 }
 
+// Преобразует строку SQLite в доменную модель обязательной позиции.
 function mapSalonRequiredItemRow(row: unknown): SalonRequiredItem {
   const item = row as Record<string, unknown>;
 
@@ -163,6 +173,7 @@ function mapSalonRequiredItemRow(row: unknown): SalonRequiredItem {
   };
 }
 
+// Преобразует параметры формы обязательной позиции в named parameters для SQL.
 function toSqlParams(params: SalonRequiredItemFormParams) {
   return {
     salonId: params.salon_id,
@@ -180,10 +191,12 @@ function toSqlParams(params: SalonRequiredItemFormParams) {
   };
 }
 
+// Преобразует nullable SQLite-значение в необязательную строку.
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+// Преобразует nullable SQLite-значение в необязательное число.
 function optionalNumber(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
 }

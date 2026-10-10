@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий менеджеров салонов.
+
 import type { AppDatabase } from "./db.js";
 import { normalizeOptionalRussianPhone } from "../services/phoneNormalization.js";
 
@@ -36,7 +38,9 @@ export interface SalonManagerRepository {
   updateManager(managerId: number, params: SalonManagerFormParams): void;
 }
 
+// Создаёт репозиторий для чтения и редактирования менеджеров в админке.
 export function createSalonManagerRepository(db: AppDatabase): SalonManagerRepository {
+  // Общий SELECT-фрагмент присоединяет название салона к менеджеру.
   const selectManagerFields = `
     SELECT
       sm.manager_id,
@@ -74,6 +78,7 @@ export function createSalonManagerRepository(db: AppDatabase): SalonManagerRepos
 
   const countManagers = db.prepare("SELECT COUNT(*) AS count FROM salon_managers");
 
+  // Создаёт менеджера с нормализованными контактами и ролью.
   const insertManager = db.prepare(`
     INSERT INTO salon_managers (
       salon_id,
@@ -100,6 +105,7 @@ export function createSalonManagerRepository(db: AppDatabase): SalonManagerRepos
     )
   `);
 
+  // Обновляет менеджера в справочнике, не меняя snapshot старых заявок.
   const updateManager = db.prepare(`
     UPDATE salon_managers
     SET
@@ -143,6 +149,7 @@ export function createSalonManagerRepository(db: AppDatabase): SalonManagerRepos
   };
 }
 
+// Преобразует строку SQLite в типизированную модель менеджера.
 function mapSalonManagerRow(row: unknown): SalonManager {
   const manager = row as Record<string, unknown>;
 
@@ -162,6 +169,7 @@ function mapSalonManagerRow(row: unknown): SalonManager {
   };
 }
 
+// Преобразует параметры формы менеджера в named parameters для SQL.
 function toManagerSqlParams(params: SalonManagerFormParams) {
   return {
     salonId: params.salon_id,
@@ -175,6 +183,7 @@ function toManagerSqlParams(params: SalonManagerFormParams) {
   };
 }
 
+// Преобразует nullable SQLite-значение в необязательную строку.
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }

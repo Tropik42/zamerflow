@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий заявок, их позиций и dispatch-статусов.
+
 import type { AppDatabase } from "./db.js";
 import type { OrderItemRecord, OrderRecord, OrderStatusCode, SubmittedOrder } from "../types/order.js";
 
@@ -51,6 +53,7 @@ export interface UpdateOrderScheduleAndFormattedCardParams {
  * @returns {OrderRepository} Методы сохранения заявок.
  */
 export function createOrderRepository(db: AppDatabase): OrderRepository {
+  // Обновляет modify_datetime Telegram-пользователя или создаёт минимальную запись для FK.
   const upsertTelegramUser = db.prepare(`
     INSERT INTO telegram_users (
       telegram_user_id,
@@ -65,6 +68,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
       modify_datetime = excluded.modify_datetime
   `);
 
+  // Сохраняет заявку со snapshot-полями салона, менеджера, тарифов и адреса.
   const insertOrder = db.prepare(`
     INSERT INTO orders (
       create_datetime,
@@ -139,6 +143,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     )
   `);
 
+  // Сохраняет пользовательские и автоматически добавленные позиции заявки со snapshot-полями.
   const insertOrderItem = db.prepare(`
     INSERT INTO order_items (
       order_id,
@@ -173,6 +178,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
 
   const countOrders = db.prepare("SELECT COUNT(*) AS count FROM orders");
 
+  // Список заявок для админки отдаёт свежие заявки первыми.
   const selectOrdersForAdmin = db.prepare(`
     SELECT
       order_id,
@@ -223,6 +229,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     ORDER BY order_id DESC
   `);
 
+  // Детальная заявка нужна админке и workflow-сервисам.
   const selectOrderById = db.prepare(`
     SELECT
       order_id,
@@ -274,6 +281,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     LIMIT 1
   `);
 
+  // Фиксирует успешную отправку пакета заявки в рабочий Telegram-чат.
   const markDispatchSent = db.prepare(`
     UPDATE orders
     SET
@@ -289,6 +297,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     WHERE order_id = @orderId
   `);
 
+  // Фиксирует неуспешную отправку, сохраняя частично отправленные message_id.
   const markDispatchFailed = db.prepare(`
     UPDATE orders
     SET
@@ -303,6 +312,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     WHERE order_id = @orderId
   `);
 
+  // Меняет только workflow-статус заявки.
   const updateWorkflowStatus = db.prepare(`
     UPDATE orders
     SET
@@ -311,6 +321,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     WHERE order_id = @orderId
   `);
 
+  // Обновляет дату/время и пересобранный текст карточки при переносе.
   const updateScheduleAndFormattedCard = db.prepare(`
     UPDATE orders
     SET
@@ -322,6 +333,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     WHERE order_id = @orderId
   `);
 
+  // Читает позиции заявки в порядке отображения карточки.
   const selectOrderItems = db.prepare(`
     SELECT
       order_item_id,
@@ -343,6 +355,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
     ORDER BY sort_order ASC, order_item_id ASC
   `);
 
+  // Транзакция сохраняет заявку и все её позиции одной атомарной операцией.
   const createOrderWithItems = db.transaction((order: SubmittedOrder) => {
     const now = new Date().toISOString();
 
@@ -471,6 +484,7 @@ export function createOrderRepository(db: AppDatabase): OrderRepository {
   };
 }
 
+// Преобразует строку orders в доменную запись заявки.
 function mapOrderRow(row: unknown): OrderRecord {
   const order = row as Record<string, unknown>;
 
@@ -522,6 +536,7 @@ function mapOrderRow(row: unknown): OrderRecord {
   };
 }
 
+// Преобразует строку order_items в доменную запись позиции заявки.
 function mapOrderItemRow(row: unknown): OrderItemRecord {
   const item = row as Record<string, unknown>;
 
@@ -543,14 +558,17 @@ function mapOrderItemRow(row: unknown): OrderItemRecord {
   };
 }
 
+// Преобразует nullable SQLite-значение в необязательную строку.
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+// Преобразует nullable SQLite-значение в необязательное число.
 function optionalNumber(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
 }
 
+// Нормализует dispatch-статус и защищает код от неизвестных старых значений.
 function mapDispatchNotificationStatus(value: unknown): OrderRecord["dispatch_notification_status"] {
   if (value === "sent" || value === "failed" || value === "not_sent") {
     return value;

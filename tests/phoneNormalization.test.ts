@@ -1,3 +1,5 @@
+// Файл проверяет нормализацию российских телефонов в чистом и свободном тексте.
+
 import assert from "node:assert/strict";
 import {
   countPhoneDigits,

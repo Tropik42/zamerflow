@@ -1,3 +1,5 @@
+// Файл проверяет формат карточки заявки и сохранение snapshot-полей в тексте.
+
 import assert from "node:assert/strict";
 import { formatOrderCard } from "../src/bot/formatOrderCard.js";
 import type { OrderDraft } from "../src/types/order.js";

@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий справочника салонов и их тарифных настроек.
+
 import type { AppDatabase } from "./db.js";
 import type { PaymentBy, Salon } from "../types/order.js";
 
@@ -32,6 +34,7 @@ export interface SalonFormParams {
  * @returns {SalonRepository} Методы чтения активных салонов и салона по id.
  */
 export function createSalonRepository(db: AppDatabase): SalonRepository {
+  // Активные салоны используются ботом при создании заявки.
   const selectActiveSalons = db.prepare(`
     SELECT
       salon_id,
@@ -55,6 +58,7 @@ export function createSalonRepository(db: AppDatabase): SalonRepository {
     ORDER BY sort_order ASC, salon_name ASC
   `);
 
+  // Все салоны нужны админке, включая неактивные записи.
   const selectAllSalons = db.prepare(`
     SELECT
       salon_id,
@@ -77,6 +81,7 @@ export function createSalonRepository(db: AppDatabase): SalonRepository {
     ORDER BY sort_order ASC, salon_name ASC
   `);
 
+  // Чтение салона по id используется и ботом, и формой редактирования.
   const selectSalonById = db.prepare(`
     SELECT
       salon_id,
@@ -102,6 +107,7 @@ export function createSalonRepository(db: AppDatabase): SalonRepository {
 
   const countSalons = db.prepare("SELECT COUNT(*) AS count FROM salons");
 
+  // Создаёт новую запись салона с тарифами и настройками оплаты.
   const insertSalon = db.prepare(`
     INSERT INTO salons (
       create_datetime,
@@ -138,6 +144,7 @@ export function createSalonRepository(db: AppDatabase): SalonRepository {
     )
   `);
 
+  // Обновляет справочник салона без изменения старых snapshot-данных заявок.
   const updateSalon = db.prepare(`
     UPDATE salons
     SET
@@ -186,6 +193,7 @@ export function createSalonRepository(db: AppDatabase): SalonRepository {
   };
 }
 
+// Преобразует параметры HTML-формы в named parameters для prepared statement.
 function toSalonSqlParams(params: SalonFormParams) {
   return {
     salonName: params.salon_name,
@@ -250,6 +258,7 @@ function optionalNumber(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
 }
 
+// Преобразует nullable значение SQLite в один из допустимых вариантов оплаты.
 function optionalPaymentBy(value: unknown): PaymentBy | undefined {
   return (
     value === "клиентом" ||

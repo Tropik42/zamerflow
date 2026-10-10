@@ -1,3 +1,5 @@
+// Файл собирает Telegram-бота, его сервисы и обработчики.
+
 import { Telegraf, type Context } from "telegraf";
 import type { AppDatabase } from "../db/db.js";
 import type { ManagerAuthCodeRepository } from "../db/managerAuthCodeRepository.js";
@@ -39,6 +41,7 @@ export function createBot(
 ): Telegraf<Context> {
   const bot = new Telegraf<Context>(botToken);
 
+  // Глобальный обработчик Telegraf логирует ошибку update без остановки процесса.
   bot.catch((error, ctx) => {
     const message = safeErrorMessage(error);
     const errorName = error instanceof Error ? error.name : typeof error;
@@ -49,6 +52,7 @@ export function createBot(
     );
   });
 
+  // Сервисы создаются здесь, чтобы Telegram handlers не знали о деталях их сборки.
   const dispatchNotificationService = createDispatchNotificationService(bot);
   const orderWorkflowService = createOrderWorkflowService({
     db,

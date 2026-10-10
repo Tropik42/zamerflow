@@ -1,5 +1,8 @@
+// Файл форматирует профиль авторизованного менеджера для команды /whoami.
+
 import type { AuthenticatedUser } from "../types/auth.js";
 
+// Собирает короткий профиль пользователя с салоном, ролью и контактом.
 export function formatWhoamiProfile(user: AuthenticatedUser): string {
   return [
     `имя: ${formatManagerName(user.manager_name)}`,
@@ -9,10 +12,12 @@ export function formatWhoamiProfile(user: AuthenticatedUser): string {
   ].join("\n");
 }
 
+// Нормализует пробелы в имени менеджера перед выводом.
 function formatManagerName(managerName: string | undefined): string {
   return formatValue(managerName?.trim().replace(/\s+/g, " "));
 }
 
+// Показывает директорскую роль по-русски, остальные роли оставляет как есть.
 function formatManagerRole(role: string | undefined): string {
   switch (role) {
     case "manager":
@@ -24,6 +29,7 @@ function formatManagerRole(role: string | undefined): string {
   }
 }
 
+// Возвращает значение или прочерк для пустого поля профиля.
 function formatValue(value: string | undefined): string {
   return value?.trim() ? value.trim() : "-";
 }

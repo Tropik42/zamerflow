@@ -1,3 +1,5 @@
+// Файл реализует транзакционные workflow-операции заявки: согласование и перенос.
+
 import type { AppDatabase } from "../db/db.js";
 import type { OrderRepository } from "../db/orderRepository.js";
 import type { OrderStatusHistoryRepository } from "../db/orderStatusHistoryRepository.js";
@@ -70,11 +72,13 @@ export interface CreateOrderWorkflowServiceParams {
   orderStatusHistoryRepository: OrderStatusHistoryRepository;
 }
 
+// Создаёт сервис workflow, где изменение заявки и запись истории выполняются в одной транзакции.
 export function createOrderWorkflowService(
   params: CreateOrderWorkflowServiceParams
 ): OrderWorkflowService {
   const { db, orderRepository, orderStatusHistoryRepository } = params;
 
+  // Транзакция согласования меняет статус только из awaiting_coordination и пишет историю.
   const confirmOrderTransaction = db.transaction((operation: ConfirmOrderParams): ConfirmOrderResult => {
     const order = orderRepository.getOrderById(operation.orderId);
 
@@ -123,6 +127,7 @@ export function createOrderWorkflowService(
     };
   });
 
+  // Транзакция переноса обновляет дату, пересобирает карточку и пишет событие истории.
   const rescheduleOrderTransaction = db.transaction(
     (operation: RescheduleOrderParams): RescheduleOrderResult => {
       const order = orderRepository.getOrderById(operation.orderId);
@@ -198,6 +203,7 @@ export function createOrderWorkflowService(
   };
 }
 
+// Превращает пустые строки времени в undefined для единообразного хранения.
 function optionalText(value: string | null | undefined): string | undefined {
   if (typeof value !== "string") {
     return undefined;

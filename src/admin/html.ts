@@ -1,3 +1,5 @@
+// Файл содержит HTML helper-ы для server-rendered админки без SPA-фреймворка.
+
 export interface NavLink {
   href: string;
   label: string;
@@ -24,6 +26,7 @@ const navLinks: NavLink[] = [
   { href: "/admin/orders", label: "Заявки" }
 ];
 
+// Собирает полный HTML-документ админки с общей навигацией и стилями.
 export function layout(title: string, body: string): string {
   return `<!doctype html>
 <html lang="ru">
@@ -69,6 +72,7 @@ export function layout(title: string, body: string): string {
 </html>`;
 }
 
+// Рисует простую HTML-таблицу и fallback-строку для пустого списка.
 export function table(headers: string[], rows: string[][]): string {
   const head = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("");
   const body = rows.length
@@ -78,6 +82,7 @@ export function table(headers: string[], rows: string[][]): string {
   return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
+// Рисует одно поле формы с поддержкой input, textarea и checkbox.
 export function field(config: FieldConfig): string {
   const value = config.value ?? "";
   const required = config.required ? " required" : "";
@@ -94,6 +99,7 @@ export function field(config: FieldConfig): string {
   return `<label>${escapeHtml(config.label)}<input type="${config.type ?? "text"}" name="${config.name}" value="${escapeHtml(String(value))}"${required}></label>`;
 }
 
+// Рисует select-поле с выбранным значением и обязательностью по умолчанию.
 export function selectField(
   name: string,
   label: string,
@@ -111,18 +117,22 @@ export function selectField(
   return `<label>${escapeHtml(label)}<select name="${name}"${required ? " required" : ""}>${optionsHtml}</select></label>`;
 }
 
+// Оборачивает набор HTML-полей в POST-форму.
 export function form(action: string, content: string, submitLabel: string): string {
   return `<form method="post" action="${action}">${content}<button type="submit">${escapeHtml(submitLabel)}</button></form>`;
 }
 
+// Форматирует SQLite-флаг 0/1 как русское "да"/"нет".
 export function yesNo(value: number | undefined): string {
   return value === 1 ? "да" : "нет";
 }
 
+// Экранирует значение для вывода в таблицах и деталях, подставляя прочерк для пустоты.
 export function value(value: string | number | undefined): string {
   return escapeHtml(value === undefined ? "-" : String(value));
 }
 
+// Экранирует спецсимволы, чтобы пользовательские данные не превращались в HTML.
 export function escapeHtml(valueToEscape: string): string {
   return valueToEscape
     .replaceAll("&", "&amp;")

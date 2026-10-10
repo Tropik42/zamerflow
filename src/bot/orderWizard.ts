@@ -1,3 +1,5 @@
+// Файл регистрирует Telegram wizard создания заявки и хранит состояние диалога менеджера.
+
 import { Markup, type Context, type Telegraf } from "telegraf";
 import type { ManagerAuthCodeRepository } from "../db/managerAuthCodeRepository.js";
 import type { SalonRequiredItemRepository } from "../db/salonRequiredItemRepository.js";
@@ -104,6 +106,7 @@ export function registerOrderWizard(
   managerAuthCodeRepository: ManagerAuthCodeRepository,
   addressGeoService: AddressGeoService
 ): void {
+  // Старт в личном чате проверяет авторизацию, а в группе только объясняет, как создать заявку.
   bot.start(async (ctx) => {
     if (!isPrivateChat(ctx)) {
       await ctx.reply(
@@ -115,6 +118,7 @@ export function registerOrderWizard(
     await handleStart(ctx, telegramUserRepository);
   });
 
+  // Команды и reply-кнопки запускают основные пользовательские действия wizard.
   bot.command("new", async (ctx) => {
     await startNewOrder(ctx, salonRepository, salonRequiredItemRepository, telegramUserRepository);
   });
@@ -154,6 +158,7 @@ export function registerOrderWizard(
     await cancelOrder(ctx);
   });
 
+  // Inline-действия выбора салона нужны только для нештатных пользователей без привязки к салону.
   bot.action(/^salon:page:(\d+)$/, async (ctx) => {
     await safeAnswerCbQuery(ctx);
 
@@ -210,6 +215,7 @@ export function registerOrderWizard(
     await replyQuestion(ctx, "2. Контакт менеджера?");
   });
 
+  // Inline-действия позиций замера добавляют выбранные элементы или переводят к ручному вводу.
   bot.action(/^service_item:([a-z0-9_]+)$/, async (ctx) => {
     await safeAnswerCbQuery(ctx);
 
@@ -254,6 +260,7 @@ export function registerOrderWizard(
     await askMainQuestion(ctx, session, "Введите позицию под замер вручную.");
   });
 
+  // Inline-действие оплаты пропускается для салонов с фиксированной оплатой.
   bot.action(/^payment:(client|salon|deposit|ipToSelfEmployed)$/, async (ctx) => {
     await safeAnswerCbQuery(ctx);
 
@@ -270,6 +277,7 @@ export function registerOrderWizard(
     await askMainQuestion(ctx, session, "Доплаты / особенности. Можно пропустить.", true);
   });
 
+  // Принятие заявки сохраняет order, отправляет dispatch-пакет и защищается от двойного submit.
   bot.action("accept_order", async (ctx) => {
     const sessionKey = getSessionKey(ctx);
     const userId = ctx.from?.id;
@@ -382,6 +390,7 @@ export function registerOrderWizard(
     await acceptMeasureDate(ctx, session, negotiatedMeasureDateText);
   });
 
+  // Фото-flow хранит только Telegram file_id до отправки заявки и очищает их после submit.
   bot.action("skip_optional", async (ctx) => {
     await safeAnswerCbQuery(ctx);
 
@@ -518,6 +527,7 @@ export function registerOrderWizard(
     await handleUnsupportedPhotoStepAttachment(ctx);
   });
 
+  // Текстовые сообщения маршрутизируются по текущему шагу wizard.
   bot.on("text", async (ctx) => {
     await handleText(
       ctx as TextContext,
@@ -563,6 +573,7 @@ async function handleStart(
   );
 }
 
+// Обрабатывает введённый код доступа и привязывает Telegram-пользователя к менеджеру.
 async function handleAuthCodeAttempt(
   ctx: TextContext,
   authCode: string,
@@ -609,6 +620,7 @@ async function handleAuthCodeAttempt(
   }
 }
 
+// Показывает текущую привязку пользователя к менеджеру и салону.
 async function showWhoami(
   ctx: Context,
   telegramUserRepository: TelegramUserRepository
@@ -629,6 +641,7 @@ async function showWhoami(
   await ctx.reply(formatWhoamiProfile(user), mainKeyboardForChat(ctx));
 }
 
+// Показывает chat id текущего чата для настройки DISPATCH_CHAT_ID.
 async function showChatId(ctx: Context): Promise<void> {
   const chat = ctx.chat;
 
@@ -894,6 +907,7 @@ async function handleText(
   }
 }
 
+// Принимает фото на шаге photos, соблюдая лимит и сохраняя Telegram file_id.
 async function handlePhoto(ctx: PhotoContext): Promise<void> {
   const session = getSession(ctx);
 
@@ -946,6 +960,7 @@ async function handlePhoto(ctx: PhotoContext): Promise<void> {
   );
 }
 
+// Отвечает на документы и другие вложения, которые пока не поддерживаются как фото заявки.
 async function handleUnsupportedPhotoStepAttachment(ctx: Context): Promise<void> {
   const session = getSession(ctx);
 
@@ -1021,6 +1036,7 @@ async function addServiceItem(
   await ctx.reply("Позиция добавлена. Добавить ещё позицию?", serviceItemsKeyboard(true));
 }
 
+// Преобразует обязательные позиции салона в auto-added позиции черновика со snapshot-данными.
 function getRequiredServiceItems(
   salonId: number,
   salonRequiredItemRepository: SalonRequiredItemRepository
@@ -1061,6 +1077,7 @@ async function handlePaymentBy(
   await askMainQuestion(ctx, session, "Доплаты / особенности. Можно пропустить.", true);
 }
 
+// Решает, спрашивать ли плательщика или сразу идти к доплатам для фиксированной оплаты салона.
 async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): Promise<void> {
   if (session.draft.paymentBy) {
     session.step = "extraCharges";
@@ -1072,6 +1089,7 @@ async function askPaymentOrExtraCharges(ctx: Context, session: WizardSession): P
   await ctx.reply(mainQuestionText(session, "Кто оплачивает замер?"), paymentKeyboard());
 }
 
+// Нормализует введённую дату замера или принимает вариант "По договорённости".
 async function handleMeasureDate(
   ctx: Context,
   session: WizardSession,
@@ -1092,6 +1110,7 @@ async function handleMeasureDate(
   await acceptMeasureDate(ctx, session, result.value);
 }
 
+// Сохраняет принятую дату и переводит сценарий к вопросу о времени.
 async function acceptMeasureDate(
   ctx: Context,
   session: WizardSession,
@@ -1101,6 +1120,7 @@ async function acceptMeasureDate(
   await askMeasureTime(ctx, session);
 }
 
+// Задаёт вопрос о дате замера с возможным префиксом ошибки валидации.
 async function askMeasureDate(
   ctx: Context,
   session: WizardSession,
@@ -1114,6 +1134,7 @@ async function askMeasureDate(
   );
 }
 
+// Задаёт необязательный вопрос о желаемом времени прибытия замерщика.
 async function askMeasureTime(ctx: Context, session: WizardSession): Promise<void> {
   await askMainQuestion(
     ctx,
@@ -1123,6 +1144,7 @@ async function askMeasureTime(ctx: Context, session: WizardSession): Promise<voi
   );
 }
 
+// Переводит wizard на шаг фотографий и показывает подходящую клавиатуру для лички или группы.
 async function askPhotos(ctx: Context, session: WizardSession): Promise<void> {
   session.step = "photos";
 
@@ -1215,6 +1237,7 @@ function skipKeyboard() {
   return Markup.keyboard([[skipText], [cancelText]]).resize();
 }
 
+// Создаёт reply-клавиатуру выбора даты по договорённости.
 function measureDateKeyboard() {
   return Markup.keyboard([[negotiatedMeasureDateText], [cancelText]]).resize();
 }
@@ -1227,6 +1250,7 @@ function optionalStepKeyboard() {
   return Markup.inlineKeyboard([[Markup.button.callback(skipText, "skip_optional")]]);
 }
 
+// Создаёт inline-кнопку даты "По договорённости" для группового чата.
 function measureDateInlineKeyboard() {
   return Markup.inlineKeyboard([[Markup.button.callback(negotiatedMeasureDateText, "measure_date:negotiated")]]);
 }
@@ -1300,6 +1324,7 @@ function serviceItemsKeyboard(canFinish: boolean) {
   return Markup.inlineKeyboard(rows);
 }
 
+// Создаёт inline-кнопку позиции замера по ключу справочника.
 function serviceItemButton(key: string) {
   const item = measureServiceItems.find((candidate) => candidate.key === key);
 
@@ -1323,6 +1348,7 @@ function paymentKeyboard() {
   ]);
 }
 
+// Создаёт клавиатуру шага фотографий с действиями "готово", "очистить" или "пропустить".
 function photosStepKeyboard(hasPhotos: boolean) {
   if (hasPhotos) {
     return Markup.inlineKeyboard([
@@ -1366,10 +1392,12 @@ function isPrivateChat(ctx: Context): boolean {
   return ctx.chat?.type === "private";
 }
 
+// Возвращает Telegram user id как строку для хранения в SQLite.
 function getTelegramUserId(ctx: Context): string | undefined {
   return ctx.from?.id ? String(ctx.from.id) : undefined;
 }
 
+// Проверяет, что пользователь активен и привязан к салону и менеджеру.
 function isActiveAuthenticatedUser(user: unknown): user is AuthenticatedUser {
   const candidate = user as Partial<AuthenticatedUser> | undefined;
 
@@ -1381,10 +1409,12 @@ function isActiveAuthenticatedUser(user: unknown): user is AuthenticatedUser {
   );
 }
 
+// Проверяет, что роль пользователя относится к сотрудникам салона.
 function isSalonStaffUser(user: AuthenticatedUser): boolean {
   return user.role === "manager" || user.role === "director" || user.manager_role === "manager" || user.manager_role === "director";
 }
 
+// Собирает контакт менеджера для legacy-поля черновика.
 function formatManagerContact(user: AuthenticatedUser): string | undefined {
   if (user.manager_name && user.manager_phone) {
     return `${user.manager_name}, ${user.manager_phone}`;
@@ -1393,6 +1423,7 @@ function formatManagerContact(user: AuthenticatedUser): string | undefined {
   return user.manager_name ?? user.manager_phone;
 }
 
+// Формирует понятную ошибку для некорректного телефона клиента.
 function invalidClientPhoneText(value: string, error: PhoneNormalizationError): string {
   const digitCount = error.digitCount ?? countPhoneDigits(value);
 
@@ -1403,6 +1434,7 @@ function invalidClientPhoneText(value: string, error: PhoneNormalizationError): 
   ].join(" ");
 }
 
+// Собирает общие поля логов для жизненного цикла фотографий заявки.
 function photoLifecycleLogFields(ctx: Context, session: WizardSession) {
   return {
     telegram_user_id: getTelegramUserId(ctx),
@@ -1476,6 +1508,7 @@ async function replyQuestion(ctx: Context, text: string, canSkip = false): Promi
   }
 }
 
+// Отправляет вопрос о дате с reply-клавиатурой в личке или inline-кнопкой в группе.
 async function replyMeasureDateQuestion(ctx: Context, text: string): Promise<void> {
   if (isPrivateChat(ctx)) {
     await ctx.reply(text, measureDateKeyboard());
@@ -1489,6 +1522,7 @@ async function replyMeasureDateQuestion(ctx: Context, text: string): Promise<voi
   await ctx.reply("Можно выбрать без даты:", measureDateInlineKeyboard());
 }
 
+// Добавляет текст прогресса к вопросу, если для текущего шага есть основной wizard-step.
 function mainQuestionText(
   session: WizardSession,
   questionText: string
@@ -1500,6 +1534,7 @@ function mainQuestionText(
   return formatOrderWizardQuestion(session.mainSteps, session.step, questionText);
 }
 
+// Отправляет основной вопрос wizard с прогрессом и опциональной кнопкой пропуска.
 async function askMainQuestion(
   ctx: Context,
   session: WizardSession,
@@ -1526,6 +1561,7 @@ async function showPreview(
   await ctx.reply(previewText(session), previewKeyboard(session.photos.length));
 }
 
+// Обновляет предпросмотр после изменения фото или отправляет новый, если старое сообщение нельзя отредактировать.
 async function updatePreviewMessage(ctx: Context, session: WizardSession): Promise<void> {
   try {
     await ctx.editMessageText(previewText(session), previewKeyboard(session.photos.length));
@@ -1534,6 +1570,7 @@ async function updatePreviewMessage(ctx: Context, session: WizardSession): Promi
   }
 }
 
+// Собирает текст предпросмотра с количеством фото и текущей карточкой.
 function previewText(session: WizardSession): string {
   return [
     "Предпросмотр заявки",
@@ -1543,6 +1580,7 @@ function previewText(session: WizardSession): string {
   ].join("\n");
 }
 
+// Обогащает адрес черновика и сохраняет результат в snapshot-поля до показа предпросмотра.
 async function enrichDraftAddress(
   draft: OrderDraft,
   addressGeoService: AddressGeoService

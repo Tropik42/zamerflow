@@ -1,9 +1,12 @@
+-- Добавляет справочные данные салонов и менеджеров из карточек Олега без создания заявок.
+
 BEGIN TRANSACTION;
 
 -- Source: Telegram screenshots from Oleg group, parsed on 2026-06-29.
 -- Scope: reference data only: salons + salon_managers.
 -- Orders are intentionally not inserted here to avoid historical/live order duplicates.
 
+-- Добавляет новые салоны, если их ещё нет в справочнике.
 INSERT INTO salons (
   create_datetime,
   modify_datetime,
@@ -41,6 +44,7 @@ WHERE NOT EXISTS (
   SELECT 1 FROM salons WHERE salon_name = 'ДомАртМебель'
 );
 
+-- Добавляет СК Мебель, если салон ещё отсутствует.
 INSERT INTO salons (
   create_datetime,
   modify_datetime,
@@ -78,6 +82,7 @@ WHERE NOT EXISTS (
   SELECT 1 FROM salons WHERE salon_name = 'СК Мебель'
 );
 
+-- Добавляет MGS Декоратор как отдельный салон до подтверждения объединения с Русич.
 INSERT INTO salons (
   create_datetime,
   modify_datetime,
@@ -115,6 +120,7 @@ WHERE NOT EXISTS (
   SELECT 1 FROM salons WHERE salon_name = 'MGS Декоратор'
 );
 
+-- Добавляет DurMebel, если салон ещё отсутствует.
 INSERT INTO salons (
   create_datetime,
   modify_datetime,
@@ -152,7 +158,7 @@ WHERE NOT EXISTS (
   SELECT 1 FROM salons WHERE salon_name = 'DurMebel'
 );
 
--- Managers
+-- Добавляет менеджеров новых и уточнённых салонов без дублей по телефону.
 
 INSERT INTO salon_managers (
   salon_id,

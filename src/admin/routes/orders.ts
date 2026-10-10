@@ -1,9 +1,12 @@
+// Файл регистрирует страницы админки для просмотра заявок и их позиций.
+
 import type { FastifyInstance } from "fastify";
 import { escapeHtml, layout, table, value } from "../html.js";
 import type { OrderRepository } from "../../db/orderRepository.js";
 import type { OrderRecord } from "../../types/order.js";
 
 export function registerOrderRoutes(app: FastifyInstance, orderRepository: OrderRepository): void {
+  // Показывает список заявок с ключевыми snapshot-полями и dispatch-статусом.
   app.get("/admin/orders", async () => {
     const orders = orderRepository.getOrdersForAdmin();
 
@@ -43,6 +46,7 @@ export function registerOrderRoutes(app: FastifyInstance, orderRepository: Order
     );
   });
 
+  // Показывает подробности заявки, её позиции и сохранённый текст карточки.
   app.get<{ Params: { orderId: string } }>("/admin/orders/:orderId", async (request, reply) => {
     const order = orderRepository.getOrderById(Number(request.params.orderId));
 
@@ -92,6 +96,7 @@ export function registerOrderRoutes(app: FastifyInstance, orderRepository: Order
   });
 }
 
+// Собирает definition list со всеми диагностическими полями заявки.
 function orderDetails(order: OrderRecord): string {
   const rows: Array<[string, string | number | undefined]> = [
     ["create_datetime", order.create_datetime],

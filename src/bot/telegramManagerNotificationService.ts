@@ -1,3 +1,5 @@
+// Файл реализует отправку Telegram-уведомлений менеджеру о событиях workflow заявки.
+
 import type { Context, Telegraf } from "telegraf";
 import type {
   ManagerNotificationService,
@@ -35,6 +37,7 @@ export function createTelegramManagerNotificationService(
   };
 }
 
+// Форматирует текст уведомления менеджеру в зависимости от типа workflow-события.
 export function formatManagerWorkflowNotification(
   notification: ManagerWorkflowNotification
 ): string {
@@ -53,6 +56,7 @@ export function formatManagerWorkflowNotification(
   ].join("\n");
 }
 
+// Форматирует сообщение о согласованной дате с учётом отсутствующего времени или даты.
 function formatConfirmedMeasureText(measureDate?: string, measureTime?: string): string {
   if (measureDate && measureTime) {
     return `Замер согласован на ${measureDate}, ${measureTime}.`;
@@ -69,6 +73,7 @@ function formatConfirmedMeasureText(measureDate?: string, measureTime?: string):
   return "Замер согласован.";
 }
 
+// Форматирует сообщение о новой дате после переноса заявки.
 function formatRescheduledMeasureText(newMeasureDate: string, newMeasureTime?: string): string {
   if (newMeasureTime) {
     return `Новая дата замера: ${newMeasureDate}, ${newMeasureTime}.`;
@@ -77,6 +82,7 @@ function formatRescheduledMeasureText(newMeasureDate: string, newMeasureTime?: s
   return `Новая дата замера: ${newMeasureDate}.`;
 }
 
+// Преобразует ошибку Telegram в стабильный код для логов и тестов.
 function safeTelegramErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
 

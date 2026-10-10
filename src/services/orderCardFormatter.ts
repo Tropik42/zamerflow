@@ -1,3 +1,5 @@
+// Файл форматирует карточку заявки из черновика или сохранённой записи со snapshot-полями.
+
 import type { OrderDraft, OrderItemRecord, OrderRecord } from "../types/order.js";
 import { formatMeasurePaymentForCard } from "./measurePaymentOptions.js";
 import { negotiatedMeasureDateText } from "./measureDate.js";
@@ -99,6 +101,7 @@ export function formatOrderRecordCard(
   });
 }
 
+// Собирает итоговый Telegram-текст карточки из нормализованного входа.
 export function formatOrderCardInput(input: OrderCardInput): string {
   const userServiceItems = input.serviceItems.filter((item) => !item.isAutoAdded);
   const autoAddedItems = input.serviceItems.filter((item) => item.isAutoAdded);
@@ -146,6 +149,7 @@ export function formatOrderCardInput(input: OrderCardInput): string {
   return lines.filter((line) => line !== undefined).join("\n");
 }
 
+// Преобразует строку order_items в формат, общий для formatter-а карточки.
 function mapOrderItemRecordToCardInput(item: OrderItemRecord): OrderCardServiceItemInput {
   return {
     type: item.item_name_snapshot ?? item.item_type,
@@ -179,6 +183,7 @@ function moneyOrDash(value: number | undefined): string {
   return value === undefined ? "-" : `${value.toLocaleString("en-US")}₽`;
 }
 
+// Собирает имя и телефон менеджера из snapshot-полей, оставляя fallback на старый contact.
 function managerText(input: OrderCardInput): string | undefined {
   const managerPhone = input.managerPhoneSnapshot?.trim();
   const managerName = input.managerNameSnapshot?.trim();
@@ -190,10 +195,12 @@ function managerText(input: OrderCardInput): string | undefined {
   return input.managerContact;
 }
 
+// Выбирает подпись "директор" или "менеджер" для первого блока карточки.
 function managerLabel(input: OrderCardInput): string {
   return input.managerRoleSnapshot === "director" ? "директор" : "менеджер";
 }
 
+// Объединяет адрес и метро в одну строку для карточки.
 function addressText(input: OrderCardInput): string {
   const address = valueOrDash(input.address);
   const metro = input.metro?.trim();
@@ -205,11 +212,13 @@ function addressText(input: OrderCardInput): string {
   return `ст. м. "${metro}", ${address}`;
 }
 
+// Форматирует строку "Оплата ..." с доменным label плательщика.
 function paymentText(input: OrderCardInput): string {
   const paymentBy = valueOrDash(formatMeasurePaymentForCard(input.paymentBy));
   return `Оплата ${paymentBy}.`;
 }
 
+// Форматирует заголовок карточки с датой и временем замера.
 function titleText(input: OrderCardInput): string {
   const dateText = valueOrDash(input.measureDate);
   const timeText = input.measureTime?.trim();

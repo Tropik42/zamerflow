@@ -1,3 +1,5 @@
+// Файл хранит варианты оплаты замера и форматирование оплаты для карточки.
+
 import type { PaymentBy } from "../types/order.js";
 
 export interface MeasurePaymentOption {
@@ -34,14 +36,17 @@ export const measurePaymentOptions: MeasurePaymentOption[] = [
   }
 ];
 
+// Ищет вариант оплаты по callback-key из inline-кнопки.
 export function getMeasurePaymentOptionByKey(key: string): MeasurePaymentOption | undefined {
   return measurePaymentOptions.find((option) => option.key === key);
 }
 
+// Проверяет, что строка является допустимым доменным значением оплаты.
 export function isMeasurePaymentValue(value: string): value is PaymentBy {
   return measurePaymentOptions.some((option) => option.value === value);
 }
 
+// Форматирует значение оплаты в человеческий текст для карточки заявки.
 export function formatMeasurePaymentForCard(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;

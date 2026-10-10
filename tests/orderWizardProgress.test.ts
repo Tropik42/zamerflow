@@ -1,3 +1,5 @@
+// Файл проверяет расчёт прогресса Telegram wizard с фиксированной и обычной оплатой.
+
 import assert from "node:assert/strict";
 import {
   createMainOrderWizardSteps,

@@ -1,3 +1,5 @@
+// Файл описывает интерфейс уведомлений менеджеру о workflow-событиях заявки.
+
 export interface ManagerNotificationService {
   sendWorkflowNotification(
     notification: ManagerWorkflowNotification

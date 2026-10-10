@@ -1,3 +1,5 @@
+// Файл регистрирует страницы админки для создания и сброса одноразовых кодов доступа.
+
 import type { FastifyInstance } from "fastify";
 import { asFormBody, requiredNumber, requiredString } from "../form.js";
 import { escapeHtml, form, layout, selectField, table, value, yesNo } from "../html.js";
@@ -9,6 +11,7 @@ export function registerAuthCodeRoutes(
   authCodeRepository: ManagerAuthCodeRepository,
   managerRepository: SalonManagerRepository
 ): void {
+  // Показывает список кодов и форму создания нового кода для выбранного менеджера.
   app.get<{ Querystring: { error?: string } }>("/admin/auth-codes", async (request) => {
     return authCodesPage(
       authCodeRepository,
@@ -17,6 +20,7 @@ export function registerAuthCodeRoutes(
     );
   });
 
+  // Создаёт одноразовый код и возвращает пользователя к списку кодов.
   app.post("/admin/auth-codes", async (request, reply) => {
     const body = asFormBody(request.body);
     const created = authCodeRepository.createAuthCode(
@@ -31,12 +35,14 @@ export function registerAuthCodeRoutes(
     return reply.redirect("/admin/auth-codes");
   });
 
+  // Сбрасывает использованный код, чтобы его можно было выдать повторно.
   app.post<{ Params: { authCode: string } }>("/admin/auth-codes/:authCode/reset", async (request, reply) => {
     authCodeRepository.resetAuthCode(request.params.authCode);
     return reply.redirect("/admin/auth-codes");
   });
 }
 
+// Собирает HTML страницы кодов доступа с таблицей текущих кодов.
 function authCodesPage(
   authCodeRepository: ManagerAuthCodeRepository,
   managerRepository: SalonManagerRepository,

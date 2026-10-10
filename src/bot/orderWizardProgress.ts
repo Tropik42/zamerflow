@@ -1,3 +1,5 @@
+// Файл считает прогресс основного Telegram wizard и добавляет префикс "Шаг N из M".
+
 import type { MainOrderWizardStep, OrderDraft, WizardStep } from "../types/order.js";
 
 const mainStepsWithPayment: MainOrderWizardStep[] = [
@@ -36,10 +38,12 @@ const mainStepByWizardStep: Partial<Record<WizardStep, MainOrderWizardStep>> = {
   comment: "comment"
 };
 
+// Возвращает список основных шагов с учётом фиксированной оплаты салона.
 export function createMainOrderWizardSteps(draft: Pick<OrderDraft, "paymentBy">): MainOrderWizardStep[] {
   return draft.paymentBy ? [...mainStepsWithoutPayment] : [...mainStepsWithPayment];
 }
 
+// Рассчитывает номер текущего основного шага для технического шага wizard.
 export function getOrderWizardProgress(
   mainSteps: readonly MainOrderWizardStep[],
   wizardStep: WizardStep
@@ -62,6 +66,7 @@ export function getOrderWizardProgress(
   };
 }
 
+// Добавляет к вопросу строку прогресса, если шаг входит в основной сценарий.
 export function formatOrderWizardQuestion(
   mainSteps: readonly MainOrderWizardStep[],
   wizardStep: WizardStep,

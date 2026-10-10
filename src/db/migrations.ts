@@ -1,3 +1,5 @@
+// Файл применяет SQL-миграции и хранит список уже выполненных файлов.
+
 import type { AppDatabase } from "./db.js";
 import fs from "node:fs";
 import path from "node:path";

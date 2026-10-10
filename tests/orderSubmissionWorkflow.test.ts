@@ -1,3 +1,5 @@
+// Файл проверяет сохранение заявки, историю workflow и dispatch-отправку в Telegram.
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -144,6 +146,7 @@ interface SubmissionContext {
   dispatch: CapturingDispatchNotificationService;
 }
 
+// Создаёт временный контекст с SQLite, репозиториями и fake dispatch-сервисом.
 async function withSubmissionContext(
   run: (context: SubmissionContext) => Promise<void>
 ): Promise<void> {
@@ -184,6 +187,7 @@ interface CapturingDispatchNotificationService extends DispatchNotificationServi
   nextResult?: DispatchPackageResult;
 }
 
+// Создаёт dispatch-сервис, который запоминает вызовы и может вернуть заранее заданный результат.
 function createCapturingDispatchNotificationService(): CapturingDispatchNotificationService {
   return {
     calls: [],
@@ -202,6 +206,7 @@ function createCapturingDispatchNotificationService(): CapturingDispatchNotifica
   };
 }
 
+// Создаёт валидную тестовую заявку с возможностью переопределить отдельные поля.
 function createSubmittedOrder(overrides: Partial<SubmittedOrder> = {}): SubmittedOrder {
   return {
     status: "awaiting_coordination",
@@ -232,6 +237,7 @@ function createSubmittedOrder(overrides: Partial<SubmittedOrder> = {}): Submitte
   };
 }
 
+// Оборачивает history repository так, чтобы проверить rollback при ошибке истории.
 function createThrowingHistoryRepository(
   repository: OrderStatusHistoryRepository
 ): OrderStatusHistoryRepository {
@@ -246,11 +252,13 @@ function createThrowingHistoryRepository(
   };
 }
 
+// Считает строки таблицы для проверки rollback транзакции.
 function countRows(db: Database.Database, tableName: string): number {
   const row = db.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get() as { count: number };
   return Number(row.count);
 }
 
+// Проверяет порядок сообщений dispatch-пакета и callback_data inline-кнопок.
 async function testDispatchHeaderAndPackageOrder(): Promise<void> {
   const fakeTelegram = createFakeTelegram();
   const service = createDispatchNotificationService(fakeTelegram.bot);
@@ -315,6 +323,7 @@ type HeaderExtra = {
   };
 };
 
+// Создаёт fake Telegraf с методами отправки сообщений и media group.
 function createFakeTelegram(): { bot: Telegraf<Context>; calls: TelegramCall[] } {
   const calls: TelegramCall[] = [];
 

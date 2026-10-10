@@ -1,3 +1,5 @@
+// Файл сохраняет принятую заявку и фиксирует результат отправки в диспетчерский чат.
+
 import type { AppDatabase } from "../db/db.js";
 import type { OrderRepository } from "../db/orderRepository.js";
 import type { OrderStatusHistoryRepository } from "../db/orderStatusHistoryRepository.js";
@@ -32,6 +34,7 @@ export interface CreateOrderSubmissionServiceParams {
   dispatchChatId?: string;
 }
 
+// Создаёт сервис принятия заявок с транзакционной записью orders/order_items/history.
 export function createOrderSubmissionService(
   params: CreateOrderSubmissionServiceParams
 ): OrderSubmissionService {
@@ -43,6 +46,7 @@ export function createOrderSubmissionService(
     dispatchChatId
   } = params;
 
+  // Сохраняет заявку и начальное событие workflow в одной SQLite-транзакции.
   const createOrderWithInitialHistory = db.transaction((order: SubmittedOrder) => {
     const orderId = orderRepository.create(order);
     const now = new Date().toISOString();
@@ -95,6 +99,7 @@ export function createOrderSubmissionService(
       }
 
       if (!dispatchChatId) {
+        // Без DISPATCH_CHAT_ID заявка остаётся сохранённой, но dispatch считается неуспешным.
         const errorCode = "DISPATCH_CHAT_ID_NOT_CONFIGURED";
         const attemptedAt = new Date().toISOString();
 
@@ -117,6 +122,7 @@ export function createOrderSubmissionService(
       }
 
       if (!isLikelyTelegramGroupChatId(dispatchChatId)) {
+        // Dispatch разрешён только в групповой чат, чтобы не отправлять рабочие заявки в личку.
         const errorCode = "DISPATCH_CHAT_ID_NOT_GROUP_CHAT";
         const attemptedAt = new Date().toISOString();
 
@@ -235,6 +241,7 @@ export function createOrderSubmissionService(
   };
 }
 
+// Проверяет грубый признак Telegram group/supergroup chat id.
 function isLikelyTelegramGroupChatId(chatId: string): boolean {
   return chatId.trim().startsWith("-");
 }

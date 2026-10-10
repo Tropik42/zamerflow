@@ -1,3 +1,5 @@
+// Файл регистрирует страницы админки для управления менеджерами салонов.
+
 import type { FastifyInstance } from "fastify";
 import {
   asFormBody,
@@ -24,6 +26,7 @@ export function registerManagerRoutes(
   managerRepository: SalonManagerRepository,
   salonRepository: SalonRepository
 ): void {
+  // Показывает список всех менеджеров с салонами и статусом активности.
   app.get("/admin/managers", async () => {
     const managers = managerRepository.getAllManagers();
 
@@ -60,6 +63,7 @@ export function registerManagerRoutes(
     );
   });
 
+  // Открывает форму создания менеджера.
   app.get("/admin/managers/new", async () => {
     return layout(
       "Создать менеджера",
@@ -67,6 +71,7 @@ export function registerManagerRoutes(
     );
   });
 
+  // Создаёт менеджера, нормализуя телефон перед сохранением.
   app.post("/admin/managers", async (request, reply) => {
     try {
       managerRepository.createManager(parseManagerForm(request.body));
@@ -91,6 +96,7 @@ export function registerManagerRoutes(
     return reply.redirect("/admin/managers");
   });
 
+  // Открывает форму редактирования существующего менеджера.
   app.get<{ Params: { managerId: string } }>("/admin/managers/:managerId/edit", async (request, reply) => {
     const manager = managerRepository.getManagerById(Number(request.params.managerId));
 
@@ -109,6 +115,7 @@ export function registerManagerRoutes(
     );
   });
 
+  // Сохраняет изменения менеджера и показывает ошибку телефона без потери введённых данных.
   app.post<{ Params: { managerId: string } }>("/admin/managers/:managerId", async (request, reply) => {
     const managerId = Number(request.params.managerId);
 
@@ -136,6 +143,7 @@ export function registerManagerRoutes(
   });
 }
 
+// Собирает HTML-форму создания или редактирования менеджера.
 function managerForm(
   action: string,
   salons: { salon_id: number; salon_name: string }[],
@@ -174,6 +182,7 @@ function managerForm(
   )}`;
 }
 
+// Преобразует POST body менеджера в параметры репозитория.
 function parseManagerForm(body: unknown): SalonManagerFormParams {
   const formBody = asFormBody(body);
 
@@ -189,6 +198,7 @@ function parseManagerForm(body: unknown): SalonManagerFormParams {
   };
 }
 
+// Восстанавливает введённые значения формы после ошибки валидации.
 function managerFormValuesFromBody(body: unknown): Partial<SalonManager> {
   const formBody = asFormBody(body);
 
@@ -204,6 +214,7 @@ function managerFormValuesFromBody(body: unknown): Partial<SalonManager> {
   };
 }
 
+// Ограничивает роль менеджера допустимыми значениями MVP.
 function parseManagerRole(value: string | undefined): string {
   return value === "director" ? "director" : "manager";
 }

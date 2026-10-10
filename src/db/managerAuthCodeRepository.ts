@@ -1,3 +1,5 @@
+// Файл содержит SQLite-репозиторий одноразовых кодов авторизации менеджеров.
+
 import type { AppDatabase } from "./db.js";
 import type {
   AuthenticatedUser,
@@ -39,6 +41,7 @@ interface ManagerWithSalon {
  * @returns {ManagerAuthCodeRepository} Методы проверки и погашения кодов.
  */
 export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCodeRepository {
+  // Читает только неиспользованный код в нормализованном верхнем регистре.
   const selectAvailableCode = db.prepare(`
     SELECT
       auth_code,
@@ -51,6 +54,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     LIMIT 1
   `);
 
+  // Читает список кодов для админки вместе с салоном и менеджером.
   const selectAllCodes = db.prepare(`
     SELECT
       mac.auth_code,
@@ -72,6 +76,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     WHERE is_used = 0
   `);
 
+  // Создаёт новый код, полагаясь на PRIMARY KEY для защиты от дублей.
   const insertAuthCode = db.prepare(`
     INSERT INTO manager_auth_codes (
       auth_code,
@@ -86,6 +91,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     )
   `);
 
+  // Проверяет, что менеджер и его салон активны перед привязкой Telegram-пользователя.
   const selectManagerWithSalon = db.prepare(`
     SELECT
       sm.manager_id,
@@ -100,6 +106,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     LIMIT 1
   `);
 
+  // Создаёт Telegram-пользователя с ролью и связями на менеджера и салон.
   const insertTelegramUser = db.prepare(`
     INSERT INTO telegram_users (
       telegram_user_id,
@@ -126,6 +133,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     )
   `);
 
+  // Помечает код использованным атомарно, если его ещё не успели применить.
   const updateCodeAsUsed = db.prepare(`
     UPDATE manager_auth_codes
     SET
@@ -134,6 +142,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     WHERE UPPER(auth_code) = @authCode AND is_used = 0
   `);
 
+  // Сбрасывает код в админке для повторного использования.
   const resetCode = db.prepare(`
     UPDATE manager_auth_codes
     SET
@@ -142,6 +151,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     WHERE UPPER(auth_code) = @authCode
   `);
 
+  // Перечитывает созданного пользователя вместе с присоединёнными справочниками.
   const selectTelegramUser = db.prepare(`
     SELECT
       tu.telegram_user_id,
@@ -165,6 +175,7 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
     LIMIT 1
   `);
 
+  // Транзакция погашает код и создаёт Telegram-привязку одной операцией.
   const consumeCodeTransaction = db.transaction(
     (authCode: string, telegramUser: TelegramUserIdentity) => {
       const normalizedCode = normalizeAuthCode(authCode);
@@ -257,10 +268,12 @@ export function createManagerAuthCodeRepository(db: AppDatabase): ManagerAuthCod
   };
 }
 
+// Нормализует код доступа для case-insensitive хранения и поиска.
 export function normalizeAuthCode(authCode: string): string {
   return authCode.trim().toUpperCase();
 }
 
+// Преобразует строку SQLite в модель кода доступа.
 function mapManagerAuthCodeRow(row: unknown): ManagerAuthCode {
   const code = row as Record<string, unknown>;
 
@@ -273,6 +286,7 @@ function mapManagerAuthCodeRow(row: unknown): ManagerAuthCode {
   };
 }
 
+// Добавляет к модели кода названия салона и менеджера для списка админки.
 function mapManagerAuthCodeListItemRow(row: unknown): ManagerAuthCodeListItem {
   const code = row as Record<string, unknown>;
 
@@ -283,6 +297,7 @@ function mapManagerAuthCodeListItemRow(row: unknown): ManagerAuthCodeListItem {
   };
 }
 
+// Определяет ошибку unique/foreign-key constraint от better-sqlite3.
 function isSqliteConstraintError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -292,6 +307,7 @@ function isSqliteConstraintError(error: unknown): boolean {
   );
 }
 
+// Преобразует nullable SQLite-значение в необязательную строку.
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }

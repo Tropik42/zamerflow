@@ -1,3 +1,5 @@
+// Файл отправляет пакет новой заявки в рабочий Telegram-чат диспетчеризации.
+
 import type { Context, Telegraf } from "telegraf";
 import { logError, logInfo } from "../logger.js";
 import type { DraftPhoto } from "../types/order.js";
@@ -45,6 +47,7 @@ export interface DispatchPackageResult {
   errorCode?: DispatchNotificationErrorCode;
 }
 
+// Создаёт сервис отправки: заголовок с кнопками, фотографии и карточка уходят отдельными сообщениями.
 export function createDispatchNotificationService(
   bot: Telegraf<Context>
 ): DispatchNotificationService {
@@ -131,6 +134,7 @@ export function createDispatchNotificationService(
   };
 }
 
+// Отправляет фотографии одиночным сообщением или media group в зависимости от количества.
 async function sendPhotos(
   bot: Telegraf<Context>,
   chatId: string,
@@ -157,6 +161,7 @@ async function sendPhotos(
   return messages.map((message) => message.message_id);
 }
 
+// Выбирает режим отправки фотографий для корректной обработки ошибок Telegram API.
 function photoSendMode(photos: readonly DraftPhoto[]): DispatchPhotoSendMode {
   if (photos.length === 0) {
     return "none";
@@ -165,6 +170,7 @@ function photoSendMode(photos: readonly DraftPhoto[]): DispatchPhotoSendMode {
   return photos.length === 1 ? "single_photo" : "media_group";
 }
 
+// Форматирует служебный заголовок заявки для диспетчерского чата.
 export function formatDispatchHeader(params: SendOrderPackageParams): string {
   return [
     "О Повелитель, поступила новая заявка!",
@@ -181,6 +187,7 @@ export function formatDispatchHeader(params: SendOrderPackageParams): string {
   ].join("\n");
 }
 
+// Создаёт inline-кнопки согласования и переноса для заголовка заявки.
 export function createDispatchHeaderKeyboard(orderId: number) {
   return {
     reply_markup: {
@@ -200,6 +207,7 @@ export function createDispatchHeaderKeyboard(orderId: number) {
   };
 }
 
+// Формирует callback_data workflow-кнопки в пределах лимита Telegram.
 export function createOrderWorkflowCallbackData(
   action: "confirm" | "reschedule",
   orderId: number
@@ -207,10 +215,12 @@ export function createOrderWorkflowCallbackData(
   return `order:${action}:${orderId}`;
 }
 
+// Возвращает строковое значение или прочерк для заголовка dispatch-сообщения.
 function valueOrDash(value: string | undefined): string {
   return value?.trim() ? value.trim() : "-";
 }
 
+// Собирает блок адреса с нормализованным адресом и расположением относительно МКАД/КАД.
 function formatAddressBlock(params: SendOrderPackageParams): string[] {
   const locationText = formatBeltwayHit(params.addressBeltwayHit);
   const normalizedAddress = params.addressNormalizedSnapshot?.trim();
@@ -231,6 +241,7 @@ function formatAddressBlock(params: SendOrderPackageParams): string[] {
   ];
 }
 
+// Добавляет расстояние от МКАД только для адресов за МКАД.
 function formatBeltwayDistance(params: SendOrderPackageParams): string[] {
   if (params.addressBeltwayHit !== "OUT_MKAD") {
     return [];
@@ -244,6 +255,7 @@ function formatBeltwayDistance(params: SendOrderPackageParams): string[] {
   return [`Примерное расстояние от МКАД: ${Math.ceil(distance)} км`];
 }
 
+// Переводит код DaData beltway_hit в русский текст для диспетчера.
 function formatBeltwayHit(value: string | undefined): string {
   switch (value) {
     case "IN_MKAD":
@@ -260,6 +272,7 @@ function formatBeltwayHit(value: string | undefined): string {
   }
 }
 
+// Преобразует ошибку Telegram API в стабильный код для хранения в заявке.
 function mapDispatchError(
   error: unknown,
   stage: DispatchPackageStage,
@@ -288,6 +301,7 @@ function mapDispatchError(
   return mapStageSendError(stage, sendMode);
 }
 
+// Выбирает код ошибки по стадии отправки, если Telegram не дал более точного ответа.
 function mapStageSendError(
   stage: DispatchPackageStage,
   sendMode: DispatchPhotoSendMode
@@ -304,6 +318,7 @@ function mapStageSendError(
   }
 }
 
+// Достаёт Telegram response.error_code и description из неизвестной ошибки Telegraf.
 function getTelegramErrorResponse(
   error: unknown
 ): { error_code?: number; description?: string } | undefined {

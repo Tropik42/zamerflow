@@ -1,3 +1,5 @@
+// Файл проверяет миграции workflow-таблиц и совместимость с legacy-заявками.
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -117,6 +119,7 @@ withTempDatabase((db, tempDir) => {
   assert.equal(row.status, "accepted");
 });
 
+// Создаёт временную SQLite-базу для проверки миграций без изменения локальных данных.
 function withTempDatabase(run: (db: Database.Database, tempDir: string) => void): void {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zamerflow-workflow-db-"));
   const db = new Database(path.join(tempDir, "test.sqlite"));
@@ -131,6 +134,7 @@ function withTempDatabase(run: (db: Database.Database, tempDir: string) => void)
   }
 }
 
+// Проверяет наличие таблицы после применения миграций.
 function assertTableExists(db: Database.Database, tableName: string): void {
   const row = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
@@ -139,6 +143,7 @@ function assertTableExists(db: Database.Database, tableName: string): void {
   assert.ok(row, `Expected table ${tableName} to exist`);
 }
 
+// Проверяет наличие индекса после применения миграций.
 function assertIndexExists(db: Database.Database, indexName: string): void {
   const row = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?")
@@ -147,6 +152,7 @@ function assertIndexExists(db: Database.Database, indexName: string): void {
   assert.ok(row, `Expected index ${indexName} to exist`);
 }
 
+// Возвращает описание конкретной колонки таблицы через PRAGMA table_info.
 function getTableColumn(
   db: Database.Database,
   tableName: string,
@@ -159,6 +165,7 @@ function getTableColumn(
     .find((column) => column.name === columnName);
 }
 
+// Создаёт минимальную legacy-заявку для проверки миграции workflow.
 function insertAcceptedOrder(db: Database.Database): number {
   const result = db
     .prepare(
@@ -189,6 +196,7 @@ function insertAcceptedOrder(db: Database.Database): number {
   return Number(result.lastInsertRowid);
 }
 
+// Копирует миграции до указанного файла, чтобы проверить upgrade со старой схемы.
 function copyMigrationsUntil(sourceDir: string, targetDir: string, lastFilename: string): void {
   fs.mkdirSync(targetDir, { recursive: true });
 

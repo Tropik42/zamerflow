@@ -1,3 +1,5 @@
+// Файл содержит HTTP-клиент DaData Clean Address API для нормализации адресов.
+
 import { logError, logInfo, truncateForLog } from "../logger.js";
 
 export interface DadataCleanAddressResult {
@@ -13,6 +15,7 @@ export interface DadataClient {
   cleanAddress(address: string): Promise<DadataCleanAddressResult | undefined>;
 }
 
+// Ошибка HTTP-запроса к DaData сохраняет статус ответа для диагностики.
 export class DadataHttpError extends Error {
   constructor(public readonly status: number) {
     super(`DaData Clean Address request failed with status ${status}.`);
@@ -20,6 +23,7 @@ export class DadataHttpError extends Error {
   }
 }
 
+// Создаёт клиент DaData с timeout, структурными логами и минимальной валидацией ответа.
 export function createDadataClient(params: {
   apiKey: string;
   secretKey: string;
@@ -97,6 +101,7 @@ export function createDadataClient(params: {
   };
 }
 
+// Пишет единый error-лог для сетевых, HTTP и parsing-ошибок DaData.
 function logDadataFailure(
   error: unknown,
   startedAt: number,
@@ -111,6 +116,7 @@ function logDadataFailure(
   });
 }
 
+// Преобразует неизвестную ошибку в строку для логов.
 function safeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;

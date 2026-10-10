@@ -1,3 +1,5 @@
+// Файл регистрирует Telegram handlers для workflow-действий диспетчера по заявке.
+
 import type { Context, Telegraf } from "telegraf";
 import type { OrderRepository } from "../db/orderRepository.js";
 import { logError, logInfo } from "../logger.js";
@@ -32,12 +34,14 @@ export interface HandleOrderConfirmCallbackParams {
   dispatchChatId?: string;
 }
 
+// Подключает обработчики inline-кнопок workflow к экземпляру Telegraf.
 export function registerOrderWorkflowHandlers(params: RegisterOrderWorkflowHandlersParams): void {
   params.bot.action(/^order:confirm:.+$/, async (ctx) => {
     await handleOrderConfirmCallback(ctx, params);
   });
 }
 
+// Обрабатывает нажатие "Согласовано": проверяет guard, меняет статус и запускает side effects.
 export async function handleOrderConfirmCallback(
   ctx: Context,
   params: HandleOrderConfirmCallbackParams
@@ -125,6 +129,7 @@ export async function handleOrderConfirmCallback(
   }
 }
 
+// Создаёт actor context из Telegram-пользователя, который нажал workflow-кнопку.
 function createTelegramActor(ctx: Context): ActorContext | undefined {
   if (!ctx.from || typeof ctx.from.id !== "number") {
     return undefined;
@@ -136,6 +141,7 @@ function createTelegramActor(ctx: Context): ActorContext | undefined {
   };
 }
 
+// Уведомляет менеджера о согласовании и логирует неуспешные side effects без rollback статуса.
 async function notifyManagerAfterConfirm(
   params: HandleOrderConfirmCallbackParams,
   notification: {
@@ -178,6 +184,7 @@ async function notifyManagerAfterConfirm(
   }
 }
 
+// Обновляет dispatch-заголовок и убирает workflow-кнопки после успешного согласования.
 async function updateDispatchHeaderAfterConfirm(
   params: HandleOrderConfirmCallbackParams,
   header: {
@@ -224,6 +231,7 @@ async function updateDispatchHeaderAfterConfirm(
   }
 }
 
+// Преобразует ошибку побочного эффекта в стабильный код для логов.
 function safeSideEffectErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
 

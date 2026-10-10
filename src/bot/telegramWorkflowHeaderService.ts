@@ -1,3 +1,5 @@
+// Файл обновляет dispatch-заголовок заявки в Telegram после workflow-действий.
+
 import type { Context, Telegraf } from "telegraf";
 import { createDispatchHeaderKeyboard } from "../services/dispatchNotificationService.js";
 
@@ -33,6 +35,7 @@ export type WorkflowHeaderUpdateResult =
       error: string;
     };
 
+// Создаёт сервис редактирования уже отправленного заголовка заявки.
 export function createTelegramWorkflowHeaderService(
   bot: Telegraf<Context>
 ): WorkflowHeaderUpdateService {
@@ -66,6 +69,7 @@ export function createTelegramWorkflowHeaderService(
   };
 }
 
+// Обновляет строки статуса и даты в существующем тексте заголовка.
 export function updateWorkflowHeaderText(params: {
   currentText?: string;
   statusText: string;
@@ -85,6 +89,7 @@ export function updateWorkflowHeaderText(params: {
   return withStatus.join("\n");
 }
 
+// Возвращает inline-кнопки для активного workflow или пустую клавиатуру после завершения.
 function createWorkflowHeaderReplyMarkup(controls: WorkflowHeaderControls) {
   if (controls.type === "workflow") {
     return createDispatchHeaderKeyboard(controls.orderId);
@@ -97,6 +102,7 @@ function createWorkflowHeaderReplyMarkup(controls: WorkflowHeaderControls) {
   };
 }
 
+// Заменяет первую строку по шаблону или добавляет её в конец текста.
 function replaceOrAppendLine(lines: string[], pattern: RegExp, newLine: string): string[] {
   const index = lines.findIndex((line) => pattern.test(line));
 
@@ -109,10 +115,12 @@ function replaceOrAppendLine(lines: string[], pattern: RegExp, newLine: string):
   return nextLines;
 }
 
+// Возвращает строковое значение или прочерк для заголовка заявки.
 function valueOrDash(value: string | undefined): string {
   return value?.trim() ? value.trim() : "-";
 }
 
+// Преобразует ошибку Telegram editMessageText в стабильный код.
 function safeTelegramErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
 
