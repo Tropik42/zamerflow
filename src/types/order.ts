@@ -88,6 +88,14 @@ export type BeltwayHit = "IN_MKAD" | "OUT_MKAD" | "IN_KAD" | "OUT_KAD" | "UNKNOW
 
 export type DispatchNotificationStatus = "not_sent" | "sent" | "failed";
 
+export const orderStatusCodes = ["accepted", "awaiting_coordination", "confirmed"] as const;
+
+export type OrderStatusCode = (typeof orderStatusCodes)[number];
+
+export const orderWorkflowEventTypes = ["created", "confirmed", "rescheduled"] as const;
+
+export type OrderWorkflowEventType = (typeof orderWorkflowEventTypes)[number];
+
 export interface AddressGeoSnapshot {
   source: "dadata";
   normalizedAddress?: string;
@@ -213,6 +221,22 @@ export interface OrderRecord {
   dispatch_notification_error?: string;
   dispatch_notification_attempts: number;
   dispatch_notification_last_attempt_at?: string;
+}
+
+export interface OrderStatusHistoryRecord {
+  order_status_history_id: number;
+  order_id: number;
+  event_type: OrderWorkflowEventType;
+  from_status_code?: OrderStatusCode;
+  to_status_code?: OrderStatusCode;
+  comment?: string;
+  previous_measure_date?: string;
+  previous_measure_time?: string;
+  new_measure_date?: string;
+  new_measure_time?: string;
+  actor_source?: string;
+  actor_external_id?: string;
+  create_datetime: string;
 }
 
 export type WizardStep =

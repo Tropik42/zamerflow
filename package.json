@@ -8,6 +8,7 @@
     "test:measure-date": "tsx tests/measureDate.test.ts",
     "test:order-card": "tsx tests/formatOrderCard.test.ts",
     "test:phone": "tsx tests/phoneNormalization.test.ts",
+    "test:workflow-db": "tsx tests/workflowDb.test.ts",
     "test:wizard-progress": "tsx tests/orderWizardProgress.test.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -176,7 +176,7 @@ Telegram bot / Admin routes
 
 ### Целевое состояние workflow согласования в рамках #6
 
-Этот раздел описывает принятое planned-состояние для Issue #6. На момент Issue #7 `OrderWorkflowService`, новые workflow repositories и новые таблицы ещё не считаются реализованными.
+Этот раздел описывает принятое planned-состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. `OrderWorkflowService`, workflow adapters, Telegram callbacks и post-commit уведомления ещё не реализованы.
 
 Целевая граница для согласования и переноса заявок:
 

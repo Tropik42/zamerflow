@@ -198,16 +198,34 @@ Dispatch notification поля:
 
 `orders.status` остаётся бизнес-статусом заявки, например `accepted`. Dispatch-статус не должен смешиваться с бизнес-статусом заявки.
 
-### Planned DB model для workflow согласования (#6)
+### DB foundation workflow согласования (#8)
 
-Этот раздел описывает целевую схему Issue #6, которая будет реализована последующими coding Issues. На момент Issue #7 эти таблицы и изменения не считаются частью фактической текущей схемы.
+После Issue #8 в фактической схеме есть foundation для будущего workflow согласования заявок:
+
+* `order_statuses`;
+* `order_status_history`;
+* repository для записи и чтения history events.
+
+Этот foundation пока не меняет runtime создания заявок. Новые заявки всё ещё создаются текущим Telegram flow со статусом `accepted`, а запись `created` в `order_status_history` при реальном создании заявки ещё не выполняется. Переключение новых заявок на `awaiting_coordination` и атомарная запись `order + created history` относятся к последующим задачам workflow.
+
+`OrderWorkflowService`, Telegram callbacks, reschedule runtime и уведомления менеджеру пока не реализованы.
 
 #### `order_statuses`
 
-Planned справочник бизнес-статусов заявки:
+Справочник бизнес-статусов заявки:
 
 ```text
 order_statuses
+```
+
+Фактические поля:
+
+```text
+status_code TEXT PRIMARY KEY
+display_name TEXT NOT NULL
+description TEXT
+sort_order INTEGER
+is_active INTEGER
 ```
 
 Минимальные значения:
@@ -222,7 +240,8 @@ confirmed
 
 * `accepted` остаётся legacy status для уже существующих заявок;
 * старые заявки автоматически не переводятся из `accepted` в новые workflow-статусы;
-* новые заявки после реализации workflow должны создаваться со статусом `awaiting_coordination`;
+* текущий runtime создания заявок пока продолжает писать `accepted`;
+* новые заявки после реализации Issue #10 должны создаваться со статусом `awaiting_coordination`;
 * `confirmed` означает, что актуальные дата и время заявки согласованы.
 
 `orders.status TEXT` сохраняется и продолжает хранить business status code. В рамках MVP статус не заменяется integer FK и не требует сложного rebuild таблицы `orders`.
@@ -231,13 +250,39 @@ confirmed
 
 #### `order_status_history`
 
-Planned таблица истории workflow:
+Таблица истории workflow:
 
 ```text
 order_status_history
 ```
 
-Она должна хранить переходы статусов и business events заявки.
+Фактические поля:
+
+```text
+order_status_history_id
+order_id
+event_type
+from_status_code
+to_status_code
+comment
+previous_measure_date
+previous_measure_time
+new_measure_date
+new_measure_time
+actor_source
+actor_external_id
+create_datetime
+```
+
+`order_id` связан с `orders(order_id)` внешним ключом. Для чтения истории заявки используется индекс:
+
+```text
+idx_order_status_history_order_datetime
+```
+
+Индекс покрывает чтение по `order_id` и стабильную хронологическую сортировку по `create_datetime`, `order_status_history_id`.
+
+Таблица хранит переходы статусов и business events заявки.
 
 Минимальные business events:
 
