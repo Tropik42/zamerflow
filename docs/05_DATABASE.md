@@ -214,7 +214,16 @@ Dispatch notification поля:
 
 После Issue #12 Telegram callback `order:reschedule:<orderId>` запускает in-memory session ввода новой даты и, если нужно, нового времени. До полного ввода и successful `OrderWorkflowService.rescheduleOrder()` база не меняется. После successful transaction `orders.measure_date`, `orders.measure_time`, `orders.formatted_card_text` и `order_status_history` обновляются существующим service-layer кодом. Незавершённая session в SQLite не сохраняется.
 
-Post-commit Telegram side effects переноса: редактирование dispatch-card/header, отдельное сообщение в dispatch-чат и уведомление менеджера — пока не реализованы и относятся к Issue #13.
+После Issue #13 post-commit Telegram side effects переноса реализованы без изменения схемы БД. После commit runtime перечитывает актуальную заявку и использует dispatch-поля как routing data:
+
+* `dispatch_notification_chat_id`;
+* `dispatch_notification_header_message_id`;
+* `dispatch_notification_card_message_id`;
+* `formatted_card_text`;
+* `telegram_user_id`;
+* `manager_id`.
+
+Существующая dispatch-card редактируется актуальным `formatted_card_text`; новый `dispatch_notification_card_message_id` не создаётся. Header редактируется по существующему message id, при этом исходный текст header-а берётся из Telegram callback context, сохранённого в in-memory reschedule session до commit. Служебное сообщение в dispatch-чат и уведомление менеджера не записывают новые поля в SQLite.
 
 #### `order_statuses`
 

@@ -110,7 +110,7 @@ sudo journalctl -u zamerflow --no-pager | grep '"event":"order_created"'
 
 ### Structured events для workflow согласования (#6)
 
-На момент Issue #12 creation workflow пишет `order_created` со статусом `awaiting_coordination`, confirm runtime пишет события согласования, уведомления менеджера и обновления dispatch header, а reschedule input-flow пишет события старта и отмены in-memory session. События post-commit side effects переноса остаются planned для #13.
+После Issue #13 creation workflow пишет `order_created` со статусом `awaiting_coordination`, confirm runtime пишет события согласования, уведомления менеджера и обновления dispatch header, reschedule input-flow пишет события старта и отмены in-memory session, а post-commit обработка переноса пишет события редактирования карточки/header-а, служебного сообщения и уведомления менеджера.
 
 Workflow events:
 
@@ -119,7 +119,7 @@ Workflow events:
 * `order_coordination_confirm_duplicate`;
 * `order_reschedule_started` — реализовано в #12;
 * `order_reschedule_cancelled` — реализовано в #12;
-* `order_rescheduled` — planned для post-commit обработки переноса.
+* `order_rescheduled`.
 
 Manager notification events:
 
@@ -130,10 +130,10 @@ Dispatch edit / side effect events:
 
 * `dispatch_header_updated`;
 * `dispatch_header_update_failed`;
-* `dispatch_card_updated` — planned для #13;
-* `dispatch_card_update_failed` — planned для #13;
-* `dispatch_reschedule_message_sent` — planned для #13;
-* `dispatch_reschedule_message_failed` — planned для #13.
+* `dispatch_card_updated`;
+* `dispatch_card_update_failed`;
+* `dispatch_reschedule_message_sent`;
+* `dispatch_reschedule_message_failed`.
 
 Допустимые безопасные поля для этих событий:
 

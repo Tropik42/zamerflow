@@ -111,6 +111,10 @@ Reschedule input-flow принимает новую дату и новое вр�
 
 Кнопка `Отменить перенос` находится на prompt-сообщении session, поэтому она не использует dispatch header guard. Для отмены проверяются настроенный dispatch-чат, Telegram user, активная session, `orderId` session и `message_id` актуального prompt.
 
+После successful commit переноса Telegram runtime выполняет только post-commit side effects: редактирует существующую чистую карточку, обновляет существующий header, отправляет короткое служебное сообщение в dispatch-чат и уведомляет менеджера. Эти действия не создают новую полную карточку, не меняют сохранённые message id и не пишут в логи адрес, телефон, полный текст карточки, текст служебного сообщения или текст уведомления менеджеру.
+
+Для обновления header-а используется исходный presentation text из callback message, сохранённый в in-memory reschedule session до commit. Если этот текст недоступен, header не реконструируется из неполных данных БД и side effect завершается controlled failure.
+
 ## DaData keys
 
 `DADATA_API_KEY` и `DADATA_SECRET_KEY` являются секретами.

@@ -13,10 +13,12 @@ import { createDispatchNotificationService } from "../services/dispatchNotificat
 import { createOrderSubmissionService } from "../services/orderSubmissionService.js";
 import { createOrderWorkflowService } from "../services/orderWorkflowService.js";
 import { safeErrorMessage } from "./errorLogging.js";
+import { createOrderRescheduleSideEffects } from "./orderRescheduleSideEffects.js";
 import { registerOrderWorkflowHandlers } from "./orderWorkflowHandlers.js";
 import { registerOrderWizard } from "./orderWizard.js";
 import { createRescheduleSessionStore } from "./rescheduleSessionStore.js";
 import { createTelegramManagerNotificationService } from "./telegramManagerNotificationService.js";
+import { createTelegramWorkflowDispatchService } from "./telegramWorkflowDispatchService.js";
 import { createTelegramWorkflowHeaderService } from "./telegramWorkflowHeaderService.js";
 
 /**
@@ -62,7 +64,14 @@ export function createBot(
   });
   const managerNotificationService = createTelegramManagerNotificationService(bot);
   const workflowHeaderUpdateService = createTelegramWorkflowHeaderService(bot);
+  const workflowDispatchService = createTelegramWorkflowDispatchService(bot);
   const rescheduleSessionStore = createRescheduleSessionStore();
+  const orderRescheduleSideEffects = createOrderRescheduleSideEffects({
+    orderRepository,
+    managerNotificationService,
+    workflowHeaderUpdateService,
+    workflowDispatchService
+  });
   const orderSubmissionService = createOrderSubmissionService({
     db,
     orderRepository,
@@ -78,6 +87,7 @@ export function createBot(
     managerNotificationService,
     workflowHeaderUpdateService,
     rescheduleSessionStore,
+    onRescheduleCommitted: orderRescheduleSideEffects.handleCommitted,
     dispatchChatId
   });
   registerOrderWizard(

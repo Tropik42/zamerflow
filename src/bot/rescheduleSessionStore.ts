@@ -6,6 +6,8 @@ export interface RescheduleSession {
   orderId: number;
   actorTelegramUserId: number;
   dispatchChatId: string;
+  dispatchHeaderMessageId: number;
+  dispatchHeaderCurrentText?: string;
   step: RescheduleSessionStep;
   newMeasureDate?: string;
   isSubmitting: boolean;

@@ -52,7 +52,9 @@ export function formatManagerWorkflowNotification(
   return [
     `📅 Заявка #${notification.orderId} перенесена.`,
     "",
-    formatRescheduledMeasureText(notification.newMeasureDate, notification.newMeasureTime)
+    formatRescheduledMeasureText(notification.newMeasureDate, notification.newMeasureTime),
+    "",
+    "Информацию о согласовании сообщим дополнительно."
   ].join("\n");
 }
 

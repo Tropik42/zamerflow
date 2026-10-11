@@ -17,6 +17,10 @@ import {
   createRescheduleSessionStore,
   type RescheduleSessionStore
 } from "../src/bot/rescheduleSessionStore.js";
+import type {
+  RescheduleCommittedEvent,
+  SuccessfulRescheduleOrderResult
+} from "../src/bot/orderRescheduleEvents.js";
 import type { OrderRepository } from "../src/db/orderRepository.js";
 import type {
   ConfirmOrderResult,
@@ -35,8 +39,6 @@ const otherDispatchChatId = "-1000000000000";
 const dispatcherTelegramUserId = 444555666;
 const headerMessageId = 501;
 const cardMessageId = 777;
-
-type SuccessfulRescheduleResult = Extract<RescheduleOrderResult, { status: "success" }>;
 
 assert.deepEqual(parseOrderRescheduleCallbackData("order:reschedule:42"), {
   status: "ok",
@@ -168,6 +170,8 @@ await withRescheduleContext(async (context) => {
   assert.equal(session.step, "date");
   assert.equal(session.isSubmitting, false);
   assert.ok(session.startedAt);
+  assert.equal(session.dispatchHeaderMessageId, headerMessageId);
+  assert.equal(session.dispatchHeaderCurrentText, "dispatch header");
   assert.equal(ctx.replies.length, 1);
   assert.equal(ctx.replies[0]?.text, "Введите новую дату замера для заявки #42.");
   assert.equal(session.expectedReplyToMessageId, ctx.replies[0]?.messageId);
@@ -298,7 +302,7 @@ await withStartedSession(async (context, promptMessageId) => {
       externalId: String(dispatcherTelegramUserId)
     }
   });
-  assert.equal(context.hookResults.length, 1);
+  assert.equal(context.hookEvents.length, 1);
 });
 
 await withStartedSession(async (context, promptMessageId) => {
@@ -378,7 +382,7 @@ await withStartedSession(async (context, promptMessageId) => {
 });
 
 await withStartedSession(async (context, promptMessageId) => {
-  const serviceResult: SuccessfulRescheduleResult = {
+  const serviceResult: SuccessfulRescheduleOrderResult = {
     status: "success",
     orderId: 42,
     previousMeasureDate: "из сервиса старая дата",
@@ -396,7 +400,14 @@ await withStartedSession(async (context, promptMessageId) => {
     context.params()
   );
 
-  assert.equal(context.hookResults[0], serviceResult);
+  assert.equal(context.hookEvents[0]?.result, serviceResult);
+  assert.deepEqual(context.hookEvents[0]?.actor, {
+    source: "telegram",
+    externalId: String(dispatcherTelegramUserId)
+  });
+  assert.equal(context.hookEvents[0]?.dispatchChatId, dispatchChatId);
+  assert.equal(context.hookEvents[0]?.dispatchHeaderMessageId, headerMessageId);
+  assert.equal(context.hookEvents[0]?.dispatchHeaderCurrentText, "dispatch header");
 });
 
 await withStartedSession(async (context, promptMessageId) => {
@@ -413,7 +424,7 @@ await withStartedSession(async (context, promptMessageId) => {
   await handleOrderRescheduleTextMessage(ctx, context.params());
 
   assert.equal(getSession(context.store), undefined);
-  assert.equal(context.hookResults.length, 0);
+  assert.equal(context.hookEvents.length, 0);
   assert.equal(ctx.replies[0]?.text, "Перенос заявки #42 больше нельзя выполнить.");
 });
 
@@ -432,7 +443,7 @@ await withStartedSession(async (context, promptMessageId) => {
   );
 
   assert.equal(getSession(context.store), undefined);
-  assert.equal(context.hookResults.length, 0);
+  assert.equal(context.hookEvents.length, 0);
 });
 
 await withStartedSession(async (context, promptMessageId) => {
@@ -445,7 +456,7 @@ await withStartedSession(async (context, promptMessageId) => {
   await handleOrderRescheduleTextMessage(ctx, context.params());
 
   assert.equal(getSession(context.store), undefined);
-  assert.equal(context.hookResults.length, 0);
+  assert.equal(context.hookEvents.length, 0);
   assert.equal(ctx.replies[0]?.text, "Не удалось выполнить перенос заявки #42. Начните перенос заново.");
 });
 
@@ -483,7 +494,7 @@ interface RescheduleTestContext {
   orderRepository: OrderRepository;
   workflowService: CountingWorkflowService;
   store: RescheduleSessionStore;
-  hookResults: SuccessfulRescheduleResult[];
+  hookEvents: RescheduleCommittedEvent[];
   params(): HandleOrderRescheduleParams;
 }
 
@@ -495,21 +506,21 @@ async function withRescheduleContext(
   const orderRepository = createFakeOrderRepository(orders);
   const workflowService = createCountingWorkflowService();
   const store = createRescheduleSessionStore();
-  const hookResults: SuccessfulRescheduleResult[] = [];
+  const hookEvents: RescheduleCommittedEvent[] = [];
   const context: RescheduleTestContext = {
     orders,
     orderRepository,
     workflowService,
     store,
-    hookResults,
+    hookEvents,
     params() {
       return {
         orderRepository,
         orderWorkflowService: workflowService,
         rescheduleSessionStore: store,
         dispatchChatId,
-        onRescheduleCommitted(result) {
-          hookResults.push(result);
+        onRescheduleCommitted(event) {
+          hookEvents.push(event);
         }
       };
     }

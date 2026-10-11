@@ -10,6 +10,10 @@ import type {
   OrderWorkflowService,
   RescheduleOrderResult
 } from "../services/orderWorkflowService.js";
+import type {
+  RescheduleCommittedEvent,
+  RescheduleCommittedHandler
+} from "./orderRescheduleEvents.js";
 import {
   extractWorkflowCallbackData,
   extractWorkflowCallbackMessage,
@@ -24,12 +28,6 @@ import type {
 } from "./rescheduleSessionStore.js";
 import { safeAnswerCbQuery } from "./safeAnswerCbQuery.js";
 import type { WorkflowHeaderUpdateService } from "./telegramWorkflowHeaderService.js";
-
-type SuccessfulRescheduleOrderResult = Extract<RescheduleOrderResult, { status: "success" }>;
-
-export type RescheduleCommittedHandler = (
-  result: SuccessfulRescheduleOrderResult
-) => void | Promise<void>;
 
 type WorkflowTextContext = Context & {
   message: {
@@ -238,6 +236,8 @@ export async function handleOrderRescheduleStartCallback(
     orderId: parsedCallback.orderId,
     actorTelegramUserId,
     dispatchChatId: message.chatId,
+    dispatchHeaderMessageId: message.messageId,
+    dispatchHeaderCurrentText: message.currentText,
     step: "date",
     isSubmitting: false,
     startedAt: new Date().toISOString()
@@ -460,16 +460,17 @@ async function submitReschedule(
   session.isSubmitting = true;
 
   let result: RescheduleOrderResult;
+  const actor: ActorContext = {
+    source: "telegram",
+    externalId: String(session.actorTelegramUserId)
+  };
 
   try {
     result = params.orderWorkflowService.rescheduleOrder({
       orderId: session.orderId,
       newMeasureDate: schedule.newMeasureDate,
       newMeasureTime: schedule.newMeasureTime,
-      actor: {
-        source: "telegram",
-        externalId: String(session.actorTelegramUserId)
-      }
+      actor
     });
   } catch {
     params.rescheduleSessionStore.delete(session);
@@ -478,13 +479,39 @@ async function submitReschedule(
   }
 
   if (result.status === "success") {
+    const event: RescheduleCommittedEvent = {
+      result,
+      actor,
+      dispatchChatId: session.dispatchChatId,
+      dispatchHeaderMessageId: session.dispatchHeaderMessageId,
+      dispatchHeaderCurrentText: session.dispatchHeaderCurrentText
+    };
+
     params.rescheduleSessionStore.delete(session);
-    await params.onRescheduleCommitted?.(result);
+    await runRescheduleCommittedHook(params, event);
     return;
   }
 
   params.rescheduleSessionStore.delete(session);
   await ctx.reply(`Перенос заявки #${session.orderId} больше нельзя выполнить.`);
+}
+
+// Запускает post-commit hook переноса так, чтобы сбой side effects не повторял business submit.
+async function runRescheduleCommittedHook(
+  params: HandleOrderRescheduleParams,
+  event: RescheduleCommittedEvent
+): Promise<void> {
+  try {
+    await params.onRescheduleCommitted?.(event);
+  } catch (error) {
+    logError("order_reschedule_post_commit_failed", {
+      order_id: event.result.orderId,
+      actor_source: event.actor.source,
+      actor_external_id: event.actor.externalId,
+      dispatch_chat_id: event.dispatchChatId,
+      error_code: safeSideEffectErrorCode(error)
+    });
+  }
 }
 
 // Отправляет prompt новой даты и возвращает message_id для проверки будущего reply.

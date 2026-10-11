@@ -413,7 +413,7 @@ order:reschedule:<orderId>
 
 ## Workflow согласования в рамках #6
 
-Этот раздел описывает текущее и целевое поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. После Issue #12 Telegram runtime собирает ввод переноса через in-memory reply-session и вызывает `rescheduleOrder()` после полного ввода. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
+Этот раздел описывает текущее поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. После Issue #12 Telegram runtime собирает ввод переноса через in-memory reply-session и вызывает `rescheduleOrder()` после полного ввода. После Issue #13 Telegram runtime выполняет post-commit side effects переноса. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
 
 `OrderWorkflowService` умеет выполнять business transitions `confirmOrder()` и `rescheduleOrder()` через repositories и одну SQLite transaction. Telegram bot вызывает `confirmOrder()` для callback `order:confirm:<orderId>`. Для callback `order:reschedule:<orderId>` бот сначала собирает новую дату/время и только затем вызывает `rescheduleOrder()`.
 
@@ -520,7 +520,7 @@ OrderWorkflowService.rescheduleOrder({
 })
 ```
 
-При `success` session очищается, а success result сервиса передаётся в extension point для post-commit handling #13. Предыдущая дата/время берутся только из `RescheduleOrderResult`, а не из session или старого order adapter-а.
+При `success` session очищается, а success result сервиса передаётся в post-commit handling вместе с Telegram context текущего header-а. Предыдущая дата/время берутся только из `RescheduleOrderResult`, а не из session или старого order adapter-а.
 
 При `order_not_found` или `transition_not_allowed` session завершается контролируемо, post-commit hook не вызывается.
 
@@ -528,15 +528,51 @@ OrderWorkflowService.rescheduleOrder({
 
 Незавершённая reschedule session хранится как in-memory MVP state. При restart процесса такая незавершённая сессия может потеряться, потому что business state заявки меняется только после вызова workflow service и успешного commit.
 
-### Ещё не реализовано для переноса (#13)
+### Реализованный post-commit flow переноса
 
-* редактирование существующей dispatch-card с актуальными датой/временем;
-* обновление workflow header после переноса;
-* отдельное короткое служебное сообщение о переносе в dispatch-чат;
-* уведомление менеджера о переносе;
-* логирование и обработка Telegram post-commit failures переноса по правилам #13.
+После successful `OrderWorkflowService.rescheduleOrder()` и SQLite commit Telegram runtime:
 
-Новая полная карточка в dispatch-чат при переносе не должна отправляться.
+1. перечитывает актуальную заявку из SQLite;
+2. редактирует существующую чистую dispatch-card актуальным `orders.formatted_card_text`;
+3. обновляет существующий технический dispatch-header на новую дату и статус `ожидает согласования`;
+4. сохраняет остальные строки header-а, включая салон, менеджера, фотографии и адресный блок;
+5. возвращает на header workflow-кнопки `✅ Согласовано` и `📅 Перенесено`;
+6. отправляет короткое служебное сообщение в dispatch-чат;
+7. уведомляет менеджера через общий `ManagerNotificationService`.
+
+Служебное сообщение в dispatch-чате формируется только из successful result business transition:
+
+```text
+📅 Заявка #4 перенесена
+Было: 16 июля, после 16
+Стало: 18 июля, с 14 до 16
+Ожидает согласования.
+```
+
+Если времени нет, строки формируются без лишней запятой:
+
+```text
+📅 Заявка #4 перенесена
+Было: 16 июля
+Стало: 18 июля
+Ожидает согласования.
+```
+
+Уведомление менеджеру:
+
+```text
+📅 Заявка #4 перенесена.
+
+Новая дата замера: 18 июля, с 14 до 16.
+
+Информацию о согласовании сообщим дополнительно.
+```
+
+Если времени нет, текст отправляется без запятой и без `undefined`.
+
+Новая полная карточка в dispatch-чат при переносе не отправляется. `dispatch_notification_card_message_id` и `dispatch_notification_header_message_id` не меняются ни при успешных side effects, ни при ошибках Telegram.
+
+Ошибки редактирования карточки, обновления header-а, отправки служебного сообщения или уведомления менеджера логируются как best-effort failures и не откатывают уже выполненный перенос.
 
 ## Работа в группе
 

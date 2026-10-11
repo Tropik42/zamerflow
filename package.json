@@ -8,6 +8,7 @@
     "test:measure-date": "tsx tests/measureDate.test.ts",
     "test:order-card": "tsx tests/formatOrderCard.test.ts",
     "test:order-confirm-callback": "tsx tests/orderConfirmCallback.test.ts",
+    "test:order-reschedule-side-effects": "tsx tests/orderRescheduleSideEffects.test.ts",
     "test:order-reschedule-session": "tsx tests/orderRescheduleSession.test.ts",
     "test:order-submission-workflow": "tsx tests/orderSubmissionWorkflow.test.ts",
     "test:phone": "tsx tests/phoneNormalization.test.ts",
