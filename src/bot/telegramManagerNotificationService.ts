@@ -41,21 +41,30 @@ export function createTelegramManagerNotificationService(
 export function formatManagerWorkflowNotification(
   notification: ManagerWorkflowNotification
 ): string {
+  const orderReference = formatOrderReference(notification.orderId, notification.address);
+
   if (notification.type === "order_confirmed") {
     return [
-      `✅ Заявка #${notification.orderId} согласована.`,
+      `✅ Заявка ${orderReference} согласована.`,
       "",
       formatConfirmedMeasureText(notification.measureDate, notification.measureTime)
     ].join("\n");
   }
 
   return [
-    `📅 Заявка #${notification.orderId} перенесена.`,
+    `📅 Заявка ${orderReference} перенесена.`,
     "",
     formatRescheduledMeasureText(notification.newMeasureDate, notification.newMeasureTime),
     "",
     "Информацию о согласовании сообщим дополнительно."
   ].join("\n");
+}
+
+// Формирует ссылку на заявку для первой строки уведомления, добавляя адрес только если он есть.
+function formatOrderReference(orderId: number, address?: string): string {
+  const normalizedAddress = address?.trim();
+
+  return normalizedAddress ? `#${orderId} (${normalizedAddress})` : `#${orderId}`;
 }
 
 // Форматирует сообщение о согласованной дате с учётом отсутствующего времени или даты.

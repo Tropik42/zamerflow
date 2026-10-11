@@ -262,6 +262,7 @@ async function notifyManagerAboutReschedule(
     const result = await params.managerNotificationService.sendWorkflowNotification({
       type: "order_rescheduled",
       orderId: event.result.orderId,
+      address: order?.address,
       managerId: order?.manager_id,
       recipientExternalId: order?.telegram_user_id,
       previousMeasureDate: event.result.previousMeasureDate,

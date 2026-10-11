@@ -45,6 +45,7 @@ await withSideEffectsContext(async (context) => {
   const orderId = insertAwaitingOrder(context.orderRepository, {
     measureDate: "16 июля",
     measureTime: "после 16",
+    address: "Невесомова 28",
     telegramUserId: managerChatId
   });
   const result = rescheduleOrder(context.workflowService, orderId, "18 июля", "с 14 до 16");
@@ -111,7 +112,7 @@ await withSideEffectsContext(async (context) => {
   assert.equal(managerMessages.length, 1);
   assert.equal(
     managerMessages[0]?.text,
-    `📅 Заявка #${orderId} перенесена.\n\nНовая дата замера: 18 июля, с 14 до 16.\n\nИнформацию о согласовании сообщим дополнительно.`
+    `📅 Заявка #${orderId} (Невесомова 28) перенесена.\n\nНовая дата замера: 18 июля, с 14 до 16.\n\nИнформацию о согласовании сообщим дополнительно.`
   );
   assert.equal(managerMessages[0]?.extra, undefined);
 });
@@ -120,6 +121,7 @@ await withSideEffectsContext(async (context) => {
   const orderId = insertAwaitingOrder(context.orderRepository, {
     measureDate: "16 июля",
     measureTime: undefined,
+    address: "",
     telegramUserId: managerChatId
   });
   const result = rescheduleOrder(context.workflowService, orderId, "18 июля", undefined);
@@ -162,6 +164,24 @@ assert.equal(
   formatManagerWorkflowNotification({
     type: "order_rescheduled",
     orderId: 4,
+    address: "Невесомова 28",
+    newMeasureDate: "18 июля"
+  }),
+  "📅 Заявка #4 (Невесомова 28) перенесена.\n\nНовая дата замера: 18 июля.\n\nИнформацию о согласовании сообщим дополнительно."
+);
+assert.equal(
+  formatManagerWorkflowNotification({
+    type: "order_rescheduled",
+    orderId: 4,
+    newMeasureDate: "18 июля"
+  }),
+  "📅 Заявка #4 перенесена.\n\nНовая дата замера: 18 июля.\n\nИнформацию о согласовании сообщим дополнительно."
+);
+assert.equal(
+  formatManagerWorkflowNotification({
+    type: "order_rescheduled",
+    orderId: 4,
+    address: "   ",
     newMeasureDate: "18 июля"
   }),
   "📅 Заявка #4 перенесена.\n\nНовая дата замера: 18 июля.\n\nИнформацию о согласовании сообщим дополнительно."

@@ -154,6 +154,7 @@ export async function handleOrderConfirmCallback(
 
     await notifyManagerAfterConfirm(params, {
       orderId: parsedCallback.orderId,
+      address: confirmedOrder?.address,
       managerId: confirmedOrder?.manager_id,
       recipientExternalId: confirmedOrder?.telegram_user_id,
       measureDate: confirmedOrder?.measure_date,
@@ -574,6 +575,7 @@ async function notifyManagerAfterConfirm(
   params: HandleOrderConfirmCallbackParams,
   notification: {
     orderId: number;
+    address?: string;
     managerId?: number;
     recipientExternalId?: string;
     measureDate?: string;
@@ -584,6 +586,7 @@ async function notifyManagerAfterConfirm(
     const result = await params.managerNotificationService.sendWorkflowNotification({
       type: "order_confirmed",
       orderId: notification.orderId,
+      address: notification.address,
       managerId: notification.managerId,
       recipientExternalId: notification.recipientExternalId,
       measureDate: notification.measureDate,

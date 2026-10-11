@@ -13,6 +13,7 @@ export type ManagerWorkflowNotification =
 export interface ManagerOrderConfirmedNotification {
   type: "order_confirmed";
   orderId: number;
+  address?: string;
   managerId?: number;
   recipientExternalId?: string;
   measureDate?: string;
@@ -22,6 +23,7 @@ export interface ManagerOrderConfirmedNotification {
 export interface ManagerOrderRescheduledNotification {
   type: "order_rescheduled";
   orderId: number;
+  address?: string;
   managerId?: number;
   recipientExternalId?: string;
   previousMeasureDate?: string;

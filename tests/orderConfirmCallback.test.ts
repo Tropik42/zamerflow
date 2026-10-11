@@ -157,6 +157,7 @@ await withConfirmContext(
     const orderId = insertAwaitingOrder(orderRepository, {
       measureDate: "18 июля",
       measureTime: "с 14 до 16",
+      address: "Пушкина 3",
       telegramUserId: "777000000"
     });
 
@@ -194,7 +195,7 @@ await withConfirmContext(
     assert.equal(managerMessages[0]?.chatId, "777000000");
     assert.equal(
       managerMessages[0]?.text,
-      "✅ Заявка #1 согласована.\n\nЗамер согласован на 18 июля, с 14 до 16."
+      "✅ Заявка #1 (Пушкина 3) согласована.\n\nЗамер согласован на 18 июля, с 14 до 16."
     );
     assert.equal(managerMessages[0]?.extra, undefined);
 
@@ -212,6 +213,24 @@ assert.equal(
   formatManagerWorkflowNotification({
     type: "order_confirmed",
     orderId: 42,
+    address: "Пушкина 3",
+    measureDate: "18 июля"
+  }),
+  "✅ Заявка #42 (Пушкина 3) согласована.\n\nЗамер согласован на 18 июля."
+);
+assert.equal(
+  formatManagerWorkflowNotification({
+    type: "order_confirmed",
+    orderId: 42,
+    measureDate: "18 июля"
+  }),
+  "✅ Заявка #42 согласована.\n\nЗамер согласован на 18 июля."
+);
+assert.equal(
+  formatManagerWorkflowNotification({
+    type: "order_confirmed",
+    orderId: 42,
+    address: "   ",
     measureDate: "18 июля"
   }),
   "✅ Заявка #42 согласована.\n\nЗамер согласован на 18 июля."

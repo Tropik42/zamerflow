@@ -413,7 +413,7 @@ order:reschedule:<orderId>
 
 ## Workflow согласования в рамках #6
 
-Этот раздел описывает текущее поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. После Issue #12 Telegram runtime собирает ввод переноса через in-memory reply-session и вызывает `rescheduleOrder()` после полного ввода. После Issue #13 Telegram runtime выполняет post-commit side effects переноса. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
+Этот раздел описывает текущее поведение для Issues #9-#14. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. После Issue #12 Telegram runtime собирает ввод переноса через in-memory reply-session и вызывает `rescheduleOrder()` после полного ввода. После Issue #13 Telegram runtime выполняет post-commit side effects переноса. После Issue #14 workflow-уведомления менеджеру показывают адрес из `orders.address` рядом с номером заявки. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
 
 `OrderWorkflowService` умеет выполнять business transitions `confirmOrder()` и `rescheduleOrder()` через repositories и одну SQLite transaction. Telegram bot вызывает `confirmOrder()` для callback `order:confirm:<orderId>`. Для callback `order:reschedule:<orderId>` бот сначала собирает новую дату/время и только затем вызывает `rescheduleOrder()`.
 
@@ -436,7 +436,7 @@ Workflow controls размещаются на техническом dispatch he
 3. проверяет, что callback пришёл из `DISPATCH_CHAT_ID`;
 4. перечитывает заявку из SQLite и для новых workflow-заявок сверяет `dispatch_notification_chat_id` и `dispatch_notification_header_message_id`;
 5. вызывает `OrderWorkflowService.confirmOrder()` с actor context `source = telegram`, `externalId = Telegram user id` нажавшего кнопку;
-6. после successful business commit уведомляет менеджера по `orders.telegram_user_id`;
+6. после successful business commit уведомляет менеджера по `orders.telegram_user_id`, добавляя в первую строку `orders.address`, если он есть;
 7. редактирует существующий технический dispatch header на статус `согласовано` и убирает workflow-кнопки.
 
 Менеджер после уведомления о согласовании ничего не подтверждает.
@@ -444,7 +444,7 @@ Workflow controls размещаются на техническом dispatch he
 Уведомление менеджеру:
 
 ```text
-✅ Заявка #<id> согласована.
+✅ Заявка #<id> (<адрес>) согласована.
 
 Замер согласован на <дата>, <время>.
 ```
@@ -452,7 +452,7 @@ Workflow controls размещаются на техническом dispatch he
 Если времени нет, текст отправляется без запятой и без `undefined`:
 
 ```text
-✅ Заявка #<id> согласована.
+✅ Заявка #<id> (<адрес>) согласована.
 
 Замер согласован на <дата>.
 ```
@@ -538,7 +538,7 @@ OrderWorkflowService.rescheduleOrder({
 4. сохраняет остальные строки header-а, включая салон, менеджера, фотографии и адресный блок;
 5. возвращает на header workflow-кнопки `✅ Согласовано` и `📅 Перенесено`;
 6. отправляет короткое служебное сообщение в dispatch-чат;
-7. уведомляет менеджера через общий `ManagerNotificationService`.
+7. уведомляет менеджера через общий `ManagerNotificationService`, добавляя в первую строку `orders.address`, если он есть.
 
 Служебное сообщение в dispatch-чате формируется только из successful result business transition:
 
@@ -561,7 +561,7 @@ OrderWorkflowService.rescheduleOrder({
 Уведомление менеджеру:
 
 ```text
-📅 Заявка #4 перенесена.
+📅 Заявка #4 (<адрес>) перенесена.
 
 Новая дата замера: 18 июля, с 14 до 16.
 
