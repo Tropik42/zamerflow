@@ -15,6 +15,7 @@ import { createOrderWorkflowService } from "../services/orderWorkflowService.js"
 import { safeErrorMessage } from "./errorLogging.js";
 import { registerOrderWorkflowHandlers } from "./orderWorkflowHandlers.js";
 import { registerOrderWizard } from "./orderWizard.js";
+import { createRescheduleSessionStore } from "./rescheduleSessionStore.js";
 import { createTelegramManagerNotificationService } from "./telegramManagerNotificationService.js";
 import { createTelegramWorkflowHeaderService } from "./telegramWorkflowHeaderService.js";
 
@@ -61,6 +62,7 @@ export function createBot(
   });
   const managerNotificationService = createTelegramManagerNotificationService(bot);
   const workflowHeaderUpdateService = createTelegramWorkflowHeaderService(bot);
+  const rescheduleSessionStore = createRescheduleSessionStore();
   const orderSubmissionService = createOrderSubmissionService({
     db,
     orderRepository,
@@ -69,6 +71,15 @@ export function createBot(
     dispatchChatId
   });
 
+  registerOrderWorkflowHandlers({
+    bot,
+    orderRepository,
+    orderWorkflowService,
+    managerNotificationService,
+    workflowHeaderUpdateService,
+    rescheduleSessionStore,
+    dispatchChatId
+  });
   registerOrderWizard(
     bot,
     orderSubmissionService,
@@ -78,14 +89,6 @@ export function createBot(
     managerAuthCodeRepository,
     addressGeoService
   );
-  registerOrderWorkflowHandlers({
-    bot,
-    orderRepository,
-    orderWorkflowService,
-    managerNotificationService,
-    workflowHeaderUpdateService,
-    dispatchChatId
-  });
 
   return bot;
 }

@@ -16,6 +16,19 @@ export type ParseOrderConfirmCallbackResult =
   | ParsedOrderConfirmCallback
   | InvalidOrderConfirmCallback;
 
+export interface ParsedOrderRescheduleCallback {
+  status: "ok";
+  orderId: number;
+}
+
+export interface InvalidOrderRescheduleCallback {
+  status: "invalid";
+}
+
+export type ParseOrderRescheduleCallbackResult =
+  | ParsedOrderRescheduleCallback
+  | InvalidOrderRescheduleCallback;
+
 export interface WorkflowCallbackMessageIdentity {
   chatId: string;
   messageId: number;
@@ -45,6 +58,58 @@ export function parseOrderConfirmCallbackData(data: unknown): ParseOrderConfirmC
   }
 
   const match = /^order:confirm:(\d+)$/.exec(data);
+
+  if (!match) {
+    return { status: "invalid" };
+  }
+
+  const orderId = Number(match[1]);
+
+  if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+    return { status: "invalid" };
+  }
+
+  return {
+    status: "ok",
+    orderId
+  };
+}
+
+// Разбирает callback_data старта переноса и не пересекается с callback отмены переноса.
+export function parseOrderRescheduleCallbackData(
+  data: unknown
+): ParseOrderRescheduleCallbackResult {
+  if (typeof data !== "string") {
+    return { status: "invalid" };
+  }
+
+  const match = /^order:reschedule:(\d+)$/.exec(data);
+
+  if (!match) {
+    return { status: "invalid" };
+  }
+
+  const orderId = Number(match[1]);
+
+  if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+    return { status: "invalid" };
+  }
+
+  return {
+    status: "ok",
+    orderId
+  };
+}
+
+// Разбирает callback_data отмены активного переноса заявки.
+export function parseOrderRescheduleCancelCallbackData(
+  data: unknown
+): ParseOrderRescheduleCallbackResult {
+  if (typeof data !== "string") {
+    return { status: "invalid" };
+  }
+
+  const match = /^order:reschedule:cancel:(\d+)$/.exec(data);
 
   if (!match) {
     return { status: "invalid" };

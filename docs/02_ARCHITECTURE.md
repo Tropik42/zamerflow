@@ -178,11 +178,21 @@ Telegram bot / Admin routes
 
 ### Workflow согласования в рамках #6
 
-Этот раздел описывает текущее состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`. После Issue #10 создание новых Telegram-заявок включено в workflow. После Issue #11 confirm callback подключён в Telegram runtime.
+Этот раздел описывает текущее состояние для Issue #6. После Issue #8 таблицы `order_statuses`, `order_status_history` и repository для истории workflow уже существуют как DB foundation. После Issue #9 реализован client-agnostic `OrderWorkflowService`, нейтральный formatter карточки и neutral contract `ManagerNotificationService`. После Issue #10 создание новых Telegram-заявок включено в workflow. После Issue #11 confirm callback подключён в Telegram runtime. После Issue #12 Telegram runtime умеет запускать reschedule reply-session и вызывать `OrderWorkflowService.rescheduleOrder()` после полного ввода новой даты/времени.
 
 Новые заявки из `/new` создаются со статусом `awaiting_coordination` и получают initial history event `created`. Служебный dispatch-header получает workflow buttons. Callback `order:confirm:<orderId>` работает только из настроенного `DISPATCH_CHAT_ID`, сверяет сохранённые dispatch chat/header ids, вызывает `OrderWorkflowService.confirmOrder()`, после commit уведомляет менеджера через Telegram implementation `ManagerNotificationService` и редактирует существующий dispatch-header на статус `согласовано` без workflow-кнопок.
 
-Telegram implementation `ManagerNotificationService` поддерживает neutral notification types `order_confirmed` и `order_rescheduled`, но в runtime после Issue #11 используется только `order_confirmed`. Callback `order:reschedule:<orderId>`, reschedule-session и post-commit side effects переноса ещё не реализованы.
+Telegram implementation `ManagerNotificationService` поддерживает neutral notification types `order_confirmed` и `order_rescheduled`, но в runtime после Issue #12 используется только `order_confirmed`: post-commit Telegram side effects переноса остаются задачей #13. Callback `order:reschedule:<orderId>` теперь только запускает in-memory session в dispatch-чате, собирает новую дату, при необходимости новое время, вызывает `OrderWorkflowService.rescheduleOrder()` и передаёт success result в extension point для будущих side effects.
+
+Незавершённая reschedule session хранится только в памяти процесса и теряется при restart. Это осознанный MVP-компромисс: до successful `rescheduleOrder()` business state заявки в SQLite не меняется.
+
+Ещё не реализовано для переноса в Telegram runtime:
+
+* редактирование существующей dispatch-card;
+* обновление workflow header после переноса;
+* служебное сообщение в dispatch-чат с блоком "было / стало";
+* уведомление менеджера о переносе;
+* retry/failure handling post-commit Telegram side effects.
 
 Целевая граница для согласования и переноса заявок:
 

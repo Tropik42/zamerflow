@@ -401,7 +401,7 @@ order:confirm:<orderId>
 order:reschedule:<orderId>
 ```
 
-Нажатие `✅ Согласовано` выполняет confirm flow только из настроенного закрытого dispatch-чата. Нажатие `📅 Перенесено` пока не выполняет transition: reschedule callback/session относятся к последующим задачам #12/#13.
+Нажатие `✅ Согласовано` выполняет confirm flow только из настроенного закрытого dispatch-чата. Нажатие `📅 Перенесено` запускает in-memory reply-session переноса: сама кнопка заявку не меняет, business transition выполняется только после ввода новой даты и, если нужно, нового времени.
 
 Строка `Примерное расстояние от МКАД: N км` показывается только для `OUT_MKAD`. Если адрес внутри МКАД, не определён или расстояние отсутствует, строка не показывается.
 
@@ -413,9 +413,9 @@ order:reschedule:<orderId>
 
 ## Workflow согласования в рамках #6
 
-Этот раздел описывает текущее и целевое поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
+Этот раздел описывает текущее и целевое поведение для Issues #9-#13. После Issue #10 DB foundation, client-agnostic `OrderWorkflowService` и workflow creation path уже есть. После Issue #11 Telegram runtime вызывает confirm flow. После Issue #12 Telegram runtime собирает ввод переноса через in-memory reply-session и вызывает `rescheduleOrder()` после полного ввода. Текущий рабочий `/new` flow сохраняет новые заявки со статусом `awaiting_coordination` и создаёт history event `created`.
 
-`OrderWorkflowService` умеет выполнять business transitions `confirmOrder()` и `rescheduleOrder()` через repositories и одну SQLite transaction. Telegram bot вызывает `confirmOrder()` для callback `order:confirm:<orderId>`. `rescheduleOrder()` в Telegram runtime ещё не вызывается.
+`OrderWorkflowService` умеет выполнять business transitions `confirmOrder()` и `rescheduleOrder()` через repositories и одну SQLite transaction. Telegram bot вызывает `confirmOrder()` для callback `order:confirm:<orderId>`. Для callback `order:reschedule:<orderId>` бот сначала собирает новую дату/время и только затем вызывает `rescheduleOrder()`.
 
 Менеджер после создания получает сообщение о том, что заявка принята и информация о согласовании или переносе придёт отдельно.
 
@@ -459,24 +459,84 @@ Workflow controls размещаются на техническом dispatch he
 
 Ошибки уведомления менеджера или редактирования dispatch header не откатывают уже выполненный `confirmed` transition и не создают новую карточку.
 
-### Planned flow `📅 Перенесено`
+### Реализованный input-flow `📅 Перенесено`
 
-Callback `📅 Перенесено` не должен сразу менять заявку. Он запускает отдельный reply-flow ввода новой даты.
+Callback `📅 Перенесено` не меняет заявку сразу. Он запускает отдельный reply-flow ввода новой даты.
 
-Новая дата должна использовать существующую validation/normalization logic из текущего шага даты заявки. Второй независимый parser даты добавлять не нужно.
+Перед стартом session Telegram adapter:
+
+1. подтверждает callback через best-effort `safeAnswerCbQuery()`;
+2. парсит только точный формат `order:reschedule:<orderId>`;
+3. перечитывает заявку из SQLite;
+4. проверяет, что callback пришёл из `DISPATCH_CHAT_ID`;
+5. для новых workflow-заявок сверяет `dispatch_notification_chat_id` и `dispatch_notification_header_message_id`;
+6. проверяет, что текущий статус заявки ещё `awaiting_coordination`;
+7. создаёт in-memory session по ключу `dispatchChatId + telegramUserId`.
+
+Если у этого пользователя в dispatch-чате уже есть активная session, новая session не создаётся и бот отвечает:
+
+```text
+Перенос заявки #<id> уже начат. Введите новую дату или отмените перенос.
+```
+
+После успешного старта бот отправляет prompt:
+
+```text
+Введите новую дату замера для заявки #<id>.
+```
+
+К prompt добавляется inline-кнопка `Отменить перенос`. Бот сохраняет `message_id` этого prompt и принимает новую дату только если текстовое сообщение:
+
+* пришло из настроенного `DISPATCH_CHAT_ID`;
+* отправлено тем же Telegram user;
+* относится к активной session этого user;
+* является reply на актуальный prompt session.
+
+Обычное сообщение dispatch-группы, не являющееся reply на актуальный prompt, не становится датой переноса и передаётся дальше по middleware chain.
+
+Новая дата использует существующую validation/normalization logic `normalizeMeasureDateInput()`. Второй независимый parser даты не добавляется. Некорректная календарная дата не вызывает `rescheduleOrder()`: session остаётся активной, бот отправляет новый prompt даты с кнопкой отмены и обновляет ожидаемый `message_id`.
 
 Новое время запрашивается только если у заявки раньше было заполнено `measure_time`. Если времени не было, перенос выполняется после ввода новой даты.
 
-Незавершённая reschedule session planned как in-memory MVP state. При restart процесса такая незавершённая сессия может потеряться, потому что business state заявки меняется только после вызова workflow service и успешного commit.
+Старое время автоматически не переносится. Если старое `measure_time` было заполнено, после валидной даты бот спрашивает:
 
-После переноса:
+```text
+Введите новое время замера для заявки #<id>.
+```
 
-* существующая dispatch-card редактируется и показывает актуальные дату/время;
-* новая полная карточка в dispatch-чат не отправляется;
-* в dispatch-чат отправляется отдельное короткое служебное сообщение о переносе;
-* менеджер получает уведомление о переносе;
-* заявка снова ожидает согласования;
-* менеджер ничего не подтверждает.
+Новое время остаётся свободным текстом и передаётся в `rescheduleOrder()` без отдельного parser-а.
+
+После полного ввода Telegram adapter вызывает:
+
+```ts
+OrderWorkflowService.rescheduleOrder({
+  orderId,
+  newMeasureDate,
+  newMeasureTime,
+  actor: {
+    source: "telegram",
+    externalId: "<Telegram user id>"
+  }
+})
+```
+
+При `success` session очищается, а success result сервиса передаётся в extension point для post-commit handling #13. Предыдущая дата/время берутся только из `RescheduleOrderResult`, а не из session или старого order adapter-а.
+
+При `order_not_found` или `transition_not_allowed` session завершается контролируемо, post-commit hook не вызывается.
+
+`Отменить перенос` удаляет session, не меняет заявку, не пишет `order_status_history`, не вызывает `rescheduleOrder()` и логирует безопасное событие `order_reschedule_cancelled`.
+
+Незавершённая reschedule session хранится как in-memory MVP state. При restart процесса такая незавершённая сессия может потеряться, потому что business state заявки меняется только после вызова workflow service и успешного commit.
+
+### Ещё не реализовано для переноса (#13)
+
+* редактирование существующей dispatch-card с актуальными датой/временем;
+* обновление workflow header после переноса;
+* отдельное короткое служебное сообщение о переносе в dispatch-чат;
+* уведомление менеджера о переносе;
+* логирование и обработка Telegram post-commit failures переноса по правилам #13.
+
+Новая полная карточка в dispatch-чат при переносе не должна отправляться.
 
 ## Работа в группе
 

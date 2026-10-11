@@ -89,7 +89,7 @@ Dispatch-чат содержит персональные данные из ка
 
 ### Workflow buttons и callbacks в dispatch-чате (#6)
 
-Этот раздел фиксирует принятое security-правило для workflow согласования. После Issue #10 служебный dispatch-header новых заявок содержит inline-кнопки `✅ Согласовано` и `📅 Перенесено`. После Issue #11 callback `order:confirm:<orderId>` реализован. Callback `order:reschedule:<orderId>` пока не реализован.
+Этот раздел фиксирует принятое security-правило для workflow согласования. После Issue #10 служебный dispatch-header новых заявок содержит inline-кнопки `✅ Согласовано` и `📅 Перенесено`. После Issue #11 callback `order:confirm:<orderId>` реализован. После Issue #12 callback `order:reschedule:<orderId>` запускает защищённую in-memory reply-session для ввода новой даты/времени.
 
 Workflow callbacks согласования и переноса могут выполняться только из настроенного закрытого:
 
@@ -99,13 +99,17 @@ DISPATCH_CHAT_ID
 
 На MVP dispatch-чат является trusted closed control surface. Отдельную dispatcher roles model сейчас не добавляем.
 
-Callback data сама по себе не является достаточным доказательством принадлежности действия к заявке. Для confirm callback validation новых workflow-заявок использует сохранённые идентификаторы dispatch-сообщений:
+Callback data сама по себе не является достаточным доказательством принадлежности действия к заявке. Для confirm и reschedule start callback validation новых workflow-заявок использует сохранённые идентификаторы dispatch-сообщений:
 
 * `dispatch_notification_chat_id`;
 * `dispatch_notification_header_message_id`;
 * при необходимости `dispatch_notification_card_message_id`.
 
 Telegram-specific guard выполняется adapter-слоем до business transition. Business service получает уже проверенный нейтральный actor context и не должен владеть Telegram-specific проверками. Если `DISPATCH_CHAT_ID` не настроен, callback пришёл из другого чата или сохранённые dispatch ids не совпали с message, business transition не выполняется.
+
+Reschedule input-flow принимает новую дату и новое время только как reply на актуальный prompt бота в `DISPATCH_CHAT_ID` от того же Telegram user, который начал session. Обычное сообщение в dispatch-группе не считается вводом переноса. Незавершённая session хранится только in-memory и теряется при restart без изменения заявки.
+
+Кнопка `Отменить перенос` находится на prompt-сообщении session, поэтому она не использует dispatch header guard. Для отмены проверяются настроенный dispatch-чат, Telegram user, активная session, `orderId` session и `message_id` актуального prompt.
 
 ## DaData keys
 
